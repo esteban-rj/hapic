@@ -1,0 +1,19 @@
+services:
+  hapic:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      HAPIC_HOST_DATA_DIR: ${HAPIC_HOST_DATA_DIR:?Set the absolute host path to the .hapic directory}
+      HAPIC_DOCKER_NETWORK: hapic-net
+      HERMES_IMAGE: ${HERMES_IMAGE:-nousresearch/hermes-agent:stable}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    volumes:
+      - ${HAPIC_HOST_DATA_DIR}:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks: [hapic]
+    restart: unless-stopped
+networks:
+  hapic:
+    name: hapic-net
+    driver: bridge

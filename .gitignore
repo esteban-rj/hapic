@@ -1,0 +1,12 @@
+.venv/
+node_modules/
+frontend/dist/
+.hapic/
+.env
+.env.*
+!.env.example
+__pycache__/
+.pytest_cache/
+*.pyc
+*.tsbuildinfo
+artifacts/
