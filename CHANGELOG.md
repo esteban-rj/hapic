@@ -2,6 +2,31 @@
 
 Este archivo registra los cambios del proyecto. Las versiones siguen el esquema `MAJOR.MINOR.PATCH`.
 
+## Sin publicar — 2026-11-03
+
+### Añadido
+
+- Templates de diseñador gráfico, arquitecto/planner y coder, además del especialista UX existente.
+- Catálogo con creación desde la interfaz, selección de proyecto y recomendaciones de modelo.
+- Herramientas de Hapic para consultar templates, listar agentes y crear especialistas.
+- Vinculación de coder a arquitecto del mismo proyecto; publicación y lectura del plan compartido con revisión SHA-256.
+- Escritura del coder condicionada a haber leído el plan vigente; extensiones de código y pruebas.
+- Generación mediante OpenAI Images, PNG persistente, adjunto de chat, vista previa y descarga autenticada.
+- Migración aditiva de `planner_id` y tabla de imágenes, conservando los datos existentes.
+
+### Corregido
+
+- El chat muestra imágenes adjuntas y referencias Markdown a imágenes locales del workspace.
+- Se guarda el archivo antes de anunciar éxito; el adjunto persiste aunque falle después Hermes.
+- El explorador reconoce PNG, JPEG, WebP y GIF válidos, además de documentos de texto.
+
+### Verificación
+
+- Pruebas de catálogo, permisos, planes vigentes, contrato Images API, persistencia, descarga y fallos posteriores con dobles locales. Sin llamadas facturables adicionales.
+- Resultado automatizado: 16 pruebas aprobadas, 1 omitida por permisos de enlaces simbólicos en Windows y build TypeScript/Vite correcto.
+- Verificación en navegador del catálogo, creación de coder vinculado y carga de imágenes en chat y Archivos con una imagen local de prueba.
+- Actualización de Compose y de los dos runtimes existentes, con readiness comprobado y conservación de organizaciones, proyectos, agentes y mensajes.
+
 ## [0.1.0] - 2026-11-02
 
 ### Añadido

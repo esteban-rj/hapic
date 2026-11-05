@@ -11,12 +11,17 @@ import {
   Copy,
   Check,
   LockKeyhole,
+  Image as ImageIcon,
 } from "lucide-react";
 import {
   api,
   post,
   put,
+  agentRoles,
+  imageUrl,
   type Agent,
+  type Message,
+  type Project,
   type FileNode,
   type Template,
 } from "./api";
@@ -139,7 +144,7 @@ export function Tree({
         {directory ? (
           <Folder size={15} />
         ) : node.preview ? (
-          <FileText size={15} />
+          node.media_type === "image" ? <ImageIcon size={15} /> : <FileText size={15} />
         ) : (
           <LockKeyhole size={14} />
         )}
@@ -162,9 +167,11 @@ export function Tree({
 export function TemplateCard({
   template,
   compact = false,
+  onUse,
 }: {
   template: Template;
   compact?: boolean;
+  onUse?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -177,7 +184,7 @@ export function TemplateCard({
           <h3>{template.name}</h3>
           <span className="muted tiny">Plantilla · v{template.version}</span>
         </div>
-        <span className="tag">UX</span>
+        <span className="tag">{template.role}</span>
       </div>
       <p>{template.description}</p>
       <div className="capability-list">
@@ -197,9 +204,10 @@ export function TemplateCard({
             ))}
           </ul>
           <div className="evidence">
-            <strong>Diseño con evidencia.</strong>
+            <strong>Forma de trabajo</strong>
             <p>{template.evidence_policy}</p>
           </div>
+          {template.recommended_model ? <p className="model-recommendation"><strong>Modelo recomendado</strong><br /><code>{template.recommended_model}</code> · {template.recommended_effort}<br />{template.model_guidance}</p> : null}
           <h4>Entregables</h4>
           <div className="file-tags">
             {template.deliverables.map((d) => (
@@ -222,28 +230,84 @@ export function TemplateCard({
           Memoria nueva y herramientas limitadas a su workspace.
         </p>
       )}
+      {onUse ? <button className="primary template-use" onClick={onUse}>Usar plantilla <ChevronRight size={15} /></button> : null}
     </section>
   );
 }
-type Message = { id: number; role: string; content: string; source: string };
+
+export function ImagePreview({ src, alt, download }: { src: string; alt: string; download: string }) {
+  const [failed, setFailed] = useState(false);
+  return <figure className="image-preview">
+    {failed ? <p role="alert">No se pudo cargar esta imagen. Comprueba que el archivo siga en el workspace.</p> : <a href={src} target="_blank" rel="noreferrer"><img src={src} alt={alt} loading="lazy" onError={() => setFailed(true)} /></a>}
+    <figcaption><span>{alt}</span><a href={download} download>Descargar</a></figcaption>
+  </figure>;
+}
+
+function MessageContent({ message, agent }: { message: Message; agent: Agent }) {
+  // Render local workspace image references only; no HTML or arbitrary remote requests.
+  const pieces = message.content.split(/(!\[[^\]]*\]\([^)]+\))/g);
+  return <>
+    {pieces.map((piece, index) => {
+      const match = piece.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+      if (!match) return piece ? <p key={index}>{piece}</p> : null;
+      const raw = match[2].replace(/^<|>$/g, "");
+      if (/^(?:https?:|data:|javascript:|\/\/)/i.test(raw)) return <p key={index}>{match[1] || "Referencia de imagen externa"}</p>;
+      const relative = raw.replace(/^\/workspace\//, "").replace(/^\.\//, "");
+      const path = relative.startsWith("agents/") || relative.startsWith("workspace/") ? relative : `agents/${agent.id}/workspace/${relative}`;
+      return <ImagePreview key={path} src={imageUrl(agent.project_id, path)} alt={match[1] || relative} download={imageUrl(agent.project_id, path, true)} />;
+    })}
+    {message.attachments?.map((item) => <ImagePreview key={item.id} src={imageUrl(agent.project_id, item.path)} alt={item.name} download={imageUrl(agent.project_id, item.path, true)} />)}
+  </>;
+}
+
+export function CreateAgentModal({ template, projects, agents, initialProjectId, close, created }: { template: Template; projects: Project[]; agents: Agent[]; initialProjectId: string; close: () => void; created: (agent: Agent) => Promise<void> }) {
+  const [projectId, setProjectId] = useState(initialProjectId || projects[0]?.id || "");
+  const [name, setName] = useState("");
+  const [plannerId, setPlannerId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const planners = agents.filter((a) => a.project_id === projectId && a.kind === "architect");
+  const selectedPlanner = planners.find((a) => a.id === plannerId)?.id || (planners.length === 1 ? planners[0].id : "");
+  return <Modal title={"Crear · " + template.name} close={() => { if (!busy) close(); }}>
+    <form onSubmit={async (event) => {
+      event.preventDefault();
+      setBusy(true); setError("");
+      try { const agent = await post<Agent>(`/projects/${projectId}/agents`, { name, template: template.kind, planner_id: template.kind === "coder" ? selectedPlanner : null }); await created(agent); }
+      catch (error) { setError((error as Error).message); }
+      finally { setBusy(false); }
+    }}>
+      <p className="muted">{template.description} El perfil tendrá memoria nueva y archivos persistentes.</p>
+      <label htmlFor="agent-project">Proyecto</label>
+      <select id="agent-project" value={projectId} required disabled={busy} onChange={(e) => { setProjectId(e.target.value); setPlannerId(""); }}><option value="">Selecciona un proyecto</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+      <label htmlFor="agent-name">Nombre del agente</label>
+      <input id="agent-name" value={name} maxLength={80} required disabled={busy} onChange={(e) => setName(e.target.value)} placeholder="Elige su nombre" />
+      {template.kind === "coder" ? <><label htmlFor="agent-planner">Arquitecto / Planner</label><select id="agent-planner" value={selectedPlanner} onChange={(e) => setPlannerId(e.target.value)} required disabled={busy}><option value="">Selecciona un arquitecto</option>{planners.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select><p className="field-help">{planners.length ? "El coder leerá el plan publicado por este arquitecto antes de escribir código." : "Primero crea un arquitecto/planner en este proyecto."}</p></> : null}
+      {template.recommended_model ? <p className="field-help">Recomendación: {template.recommended_model} · {template.recommended_effort}. Se aplicarán tus preferencias globales, ajustables en el chat. {template.model_guidance}</p> : null}
+      {error ? <p className="inline-error" role="alert">{error}</p> : null}
+      <div className="modal-actions"><button type="button" className="secondary" disabled={busy} onClick={close}>Cancelar</button><button className="primary" disabled={busy || !projectId || (template.kind === "coder" && !selectedPlanner)}>{busy ? "Preparando…" : "Crear agente"}</button></div>
+    </form>
+  </Modal>;
+}
+
 export function Chat({
   agent,
   connected,
   changed,
   onSettings,
-  onCreated,
+  onPrepare,
+  templates,
 }: {
   agent: Agent;
   connected: boolean;
   changed: () => Promise<void>;
   onSettings: () => void;
-  onCreated: (id: string) => void;
+  onPrepare: (kind: Template["kind"]) => void;
+  templates: Template[];
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [guided, setGuided] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
   const [model, setModel] = useState(agent.model);
   const [effort, setEffort] = useState(agent.effort);
@@ -262,40 +326,30 @@ export function Chat({
   }, [agent.id]);
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [messages, guided, busy]);
+  }, [messages, busy]);
   async function send(e: React.FormEvent) {
     e.preventDefault();
     if (!text.trim() || busy) return;
     setBusy(true);
     setError("");
     try {
-      if (guided) {
-        const created = await post(
-          "/projects/" + agent.project_id + "/agents",
-          { name: text.trim() },
-        );
-        setText("");
-        setGuided(false);
-        await changed();
-        onCreated(created.id);
-      } else {
-        if (model !== agent.model || effort !== agent.effort)
-          await put("/agents/" + agent.id + "/model", { model, effort });
-        const input = text.trim();
-        setText("");
-        setMessages((m) => [
-          ...m,
-          { id: -Date.now(), role: "user", content: input, source: "user" },
-        ]);
-        await post("/agents/" + agent.id + "/chat", {
-          content: input,
-          request_id: crypto.randomUUID(),
-        });
-        setMessages(await api("/agents/" + agent.id + "/messages"));
-        await changed();
-      }
+      if (model !== agent.model || effort !== agent.effort)
+        await put("/agents/" + agent.id + "/model", { model, effort });
+      const input = text.trim();
+      setText("");
+      setMessages((m) => [
+        ...m,
+        { id: -Date.now(), role: "user", content: input, source: "user" },
+      ]);
+      await post("/agents/" + agent.id + "/chat", {
+        content: input,
+        request_id: crypto.randomUUID(),
+      });
+      setMessages(await api("/agents/" + agent.id + "/messages"));
+      await changed();
     } catch (e) {
       setError((e as Error).message);
+      setMessages(await api("/agents/" + agent.id + "/messages").catch(() => messages));
     } finally {
       setBusy(false);
     }
@@ -307,15 +361,13 @@ export function Chat({
         <div>
           <strong>{agent.name}</strong>
           <span className="tiny muted">
-            {agent.kind === "hapic"
-              ? "Orquestador de tu proyecto"
-              : "Especialista en experiencia de usuario"}
+            {agentRoles[agent.kind]}
           </span>
         </div>
         <span className="tag">Hermes</span>
       </div>
       <div className="messages" aria-live="polite">
-        {messages.length === 0 && !guided ? (
+        {messages.length === 0 ? (
           <div className="chat-welcome">
             <span className="welcome-symbol">
               {agent.kind === "hapic" ? <Mark /> : <Sparkles size={30} />}
@@ -323,26 +375,27 @@ export function Chat({
             <h2>
               {agent.kind === "hapic"
                 ? "¿Qué vamos a crear?"
-                : "Una buena experiencia empieza aquí."}
+                : agentRoles[agent.kind]}
             </h2>
             <p>
               {agent.kind === "hapic"
                 ? "Dale a tu proyecto un especialista con contexto, memoria y un espacio propio."
-                : "Cuéntame sobre tu producto, tus usuarios y el problema que quieres resolver."}
+                : templates.find((t) => t.kind === agent.kind)?.description}
             </p>
             {agent.kind === "hapic" ? (
-              <button
+              <div className="template-choices">{templates.map((template) => <button
+                key={template.kind}
                 className="secondary"
                 disabled={busy}
                 onClick={() => {
                   if (connected)
-                    setText("Quiero crear un agente UX para este proyecto.");
-                  else setGuided(true);
+                    setText(`Quiero crear un ${template.name} para este proyecto.`);
+                  else onPrepare(template.kind);
                 }}
               >
                 <Sparkles size={16} />
-                {connected ? "Crear agente UX" : "Preparar un agente UX"}
-              </button>
+                {connected ? "Crear " : "Preparar "}{template.name}
+              </button>)}</div>
             ) : null}
             {!connected ? (
               <div className="offline-note">
@@ -366,26 +419,16 @@ export function Chat({
             {m.role !== "user" ? <Mark small /> : null}
             <div className="message-body">
               <span className="message-label">
-                {m.role === "user" ? "Tú" : agent.name + " · Hermes"}
+                {m.role === "user" ? "Tú" : agent.name + (m.source === "artifact" ? " · Archivo guardado" : " · Hermes")}
               </span>
-              <p>{m.content}</p>
+              <MessageContent message={m} agent={agent} />
             </div>
           </div>
         ))}
-        {guided ? (
-          <div className="guided">
-            <span className="tag">Configuración guiada · sin IA</span>
-            <h3>¿Cómo quieres llamar a tu agente UX?</h3>
-            <p>
-              Prepararemos su perfil desde la plantilla UX v1. El contenedor se
-              iniciará cuando Docker y OpenAI estén disponibles.
-            </p>
-          </div>
-        ) : null}
         {busy ? (
           <div className="thinking">
             <LoaderCircle className="spin" size={16} />
-            {guided ? "Preparando perfil…" : "Hermes está trabajando…"}
+            Hermes está trabajando…
           </div>
         ) : null}
         <div ref={bottom} />
@@ -397,7 +440,7 @@ export function Chat({
       ) : null}
       <form className="composer" onSubmit={send}>
         <label className="sr-only" htmlFor="chat-input">
-          {guided ? "Nombre del agente UX" : "Mensaje para " + agent.name}
+          Mensaje para {agent.name}
         </label>
         <textarea
           id="chat-input"
@@ -405,9 +448,9 @@ export function Chat({
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={
-            guided ? "Por ejemplo, Nora" : "Escribe a " + agent.name + "…"
+            "Escribe a " + agent.name + "…"
           }
-          disabled={busy || (!connected && !guided)}
+          disabled={busy || !connected}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
@@ -423,7 +466,7 @@ export function Chat({
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
                 aria-label="Modelo de la conversación"
-                disabled={busy || guided}
+                disabled={busy}
               />
             </label>
             <label>
@@ -432,7 +475,7 @@ export function Chat({
                 value={effort}
                 onChange={(e) => setEffort(e.target.value)}
                 aria-label="Razonamiento de la conversación"
-                disabled={busy || guided}
+                disabled={busy}
               >
                 {["low", "medium", "high", "xhigh", "max"].map((v) => (
                   <option key={v}>{v}</option>
@@ -442,8 +485,8 @@ export function Chat({
           </div>
           <button
             className="send"
-            aria-label={guided ? "Preparar agente" : "Enviar mensaje"}
-            disabled={busy || !text.trim() || (!connected && !guided)}
+            aria-label="Enviar mensaje"
+            disabled={busy || !text.trim() || !connected}
           >
             {busy ? (
               <LoaderCircle className="spin" size={17} />

@@ -47,7 +47,10 @@ class Store:
             CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY AUTOINCREMENT,agent_id TEXT REFERENCES agents(id),message TEXT,created_at TEXT);
             CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT);
             CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,csrf TEXT,created_at TEXT);
+            CREATE TABLE IF NOT EXISTS images(id TEXT PRIMARY KEY,agent_id TEXT REFERENCES agents(id),message_id INTEGER REFERENCES messages(id),path TEXT,mime_type TEXT,created_at TEXT);
             ''')
+            if "planner_id" not in {row[1] for row in db.execute("PRAGMA table_info(agents)")}:
+                db.execute("ALTER TABLE agents ADD COLUMN planner_id TEXT REFERENCES agents(id)")
 
     @contextmanager
     def db(self):
@@ -106,4 +109,5 @@ class Store:
         self.execute("INSERT INTO events(agent_id,message,created_at) VALUES (?,?,?)", (agent_id, message, now()))
 
     def message(self, agent_id, role, content, source="hermes"):
-        self.execute("INSERT INTO messages(agent_id,role,content,source,created_at) VALUES (?,?,?,?,?)", (agent_id, role, content, source, now()))
+        with self.db() as db:
+            return db.execute("INSERT INTO messages(agent_id,role,content,source,created_at) VALUES (?,?,?,?,?)", (agent_id, role, content, source, now())).lastrowid

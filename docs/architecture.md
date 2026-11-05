@@ -31,17 +31,17 @@ FastAPI sirve el build de Vite en producción. En desarrollo, Vite reenvía `/ap
 
 ## Modelo de datos
 
-Una organización agrupa proyectos. Cada proyecto tiene un orquestador Hapic y puede tener especialistas UX. La tabla `memberships` relaciona al operador local con las organizaciones y se comprueba al acceder a proyectos o agentes.
+Una organización agrupa proyectos. Cada proyecto tiene un orquestador Hapic y especialistas UX, diseño gráfico, arquitectura/planning o código. La tabla `memberships` relaciona al operador local con las organizaciones y se comprueba al acceder a proyectos o agentes.
 
-`platform.db` contiene organizaciones, pertenencias, proyectos, agentes, mensajes visibles, actividad, ajustes y sesiones locales. El estado de Hermes vive en otro SQLite dentro de su propio perfil. La inicialización crea tablas e índices si no existen; esta versión no incluye un sistema de migraciones de esquema.
+`platform.db` contiene organizaciones, pertenencias, proyectos, agentes, mensajes visibles, imágenes, actividad, ajustes y sesiones locales. `agents.planner_id` vincula un coder al arquitecto. El estado de Hermes vive en otro SQLite dentro de su propio perfil. La inicialización crea tablas e índices y añade `planner_id` a instalaciones previas sin borrar datos; no incluye un framework general de migraciones.
 
 Los identificadores generados se usan como nombres de carpetas. Los nombres elegidos por el usuario se conservan en metadatos y no se interpretan como rutas.
 
 ## Creación y ejecución de agentes
 
 1. Crear un proyecto materializa sus metadatos, carpetas y un perfil Hapic nuevo. Si hay una key configurada, se solicita su provisión.
-2. Hapic recibe instrucciones para explicar la plantilla UX y preguntar el nombre cuando falte.
-3. La herramienta MCP `create_ux_agent` valida el alcance del token y crea un perfil desde la plantilla limpia.
+2. Hapic consulta el catálogo de templates y pregunta el nombre cuando falte. La interfaz también permite crear perfiles desde un formulario.
+3. La herramienta MCP `create_specialist_agent` valida el alcance del token y crea un perfil limpio; `create_ux_agent` se conserva por compatibilidad.
 4. El servicio solicita la provisión en segundo plano y registra el avance. Crear el perfil o encolar el trabajo no garantiza que el contenedor esté disponible.
 5. El provisionador descarga la imagen si hace falta, monta únicamente el home y el workspace del agente e inicia `gateway run`.
 6. El runtime solo queda disponible cuando `/health/detailed` responde autenticado con `status: ok`.
@@ -71,6 +71,16 @@ Cada agente tiene un `HERMES_HOME` montado en `/opt/data` y un workspace distint
 Las carpetas organizan el estado. La autorización de la API, los tokens por agente, las herramientas permitidas y los montajes Docker controlan el acceso. Las instrucciones del modelo no sustituyen esos controles.
 
 Las plantillas contienen `SOUL.md`, definición y habilidades. Al crear un perfil se inicializa memoria vacía; nunca se clonan `state.db`, credenciales o recuerdos privados de un agente usado.
+
+### Planes compartidos
+
+El arquitecto publica en `workspace/plans/<architect-id>/plan.md` del proyecto. Los coders vinculados lo leen mediante la herramienta dedicada; no se monta todo el proyecto en sus contenedores. Antes de escribir, el servidor comprueba que el coder haya leído la revisión SHA-256 actual. Cada coder conserva un workspace separado. Escriben código y pruebas, sin terminal ni ejecución automática.
+
+### Imágenes
+
+`backend/images.py` llama a `/v1/images/generations` con la credencial del servidor. Decodifica base64 y valida PNG y tamaño. La herramienta escribe atómicamente en el workspace antes de registrar un mensaje de archivo y una fila `images`. Ese mensaje se conserva si después falla Hermes. La UI carga los bytes desde una ruta autenticada del mismo origen y permite descargar; no guarda base64 en SQLite ni solicita URLs arbitrarias del proveedor.
+
+Las instrucciones de integración actualizadas se envían en `instructions` de cada petición Responses, sin sobrescribir el `SOUL.md` ni memorias existentes. La lista de herramientas de un runtime existente se actualiza al recrearlo.
 
 ## Confianza y alcance
 

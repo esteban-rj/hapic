@@ -19,7 +19,8 @@ Los hosts de la interfaz y API se limitan a `localhost`, `127.0.0.1` y `::1`. Lo
 | POST | `/api/organizations` | Crear organización: `{"name":"Estudio"}` |
 | POST | `/api/organizations/{org_id}/projects` | Crear proyecto y perfil Hapic: `{"name":"Producto"}` |
 | GET | `/api/templates/ux` | Plantilla UX, capacidades, entregables e instrucciones |
-| POST | `/api/projects/{project_id}/agents` | Preparar especialista UX y solicitar provisión: `{"name":"Nora"}` |
+| GET | `/api/templates` | Catálogo UX, diseñador, arquitecto y coder, con recomendaciones |
+| POST | `/api/projects/{project_id}/agents` | Crear perfil: `{"name":"Nora","template":"ux"}`; coder exige `planner_id` |
 | POST | `/api/agents/{agent_id}/start` | Solicitar inicio o recreación del runtime |
 | GET | `/api/agents/{agent_id}/runtime` | Estado actual y readiness de Hermes |
 | GET | `/api/agents/{agent_id}/messages` | Historial visible de la plataforma |
@@ -27,6 +28,7 @@ Los hosts de la interfaz y API se limitan a `localhost`, `127.0.0.1` y `::1`. Lo
 | POST | `/api/agents/{agent_id}/chat` | Enviar turno con `content` y `request_id` único |
 | GET | `/api/projects/{project_id}/tree` | Árbol real filtrado del proyecto |
 | GET | `/api/projects/{project_id}/file?path=…` | Vista previa de documento permitido |
+| GET | `/api/projects/{project_id}/image?path=…` | Imagen del workspace; `download=true` para descargar |
 | PUT | `/api/settings/model` | Modelo y esfuerzo predeterminados para nuevos agentes |
 | PUT | `/api/agents/{agent_id}/model` | Modelo y esfuerzo de un agente existente |
 | PUT | `/api/settings/openai` | Guardar `api_key` en el servidor; nunca devuelve su valor |
@@ -49,7 +51,11 @@ Reutiliza un `request_id` solo para reintentar exactamente el mismo turno del mi
 
 La ruta de vista previa es relativa al proyecto. Se rechazan rutas absolutas, traversal, enlaces simbólicos, uniones de Windows y nombres protegidos. No se previsualizan `config.yaml`, archivos de autenticación, secretos, logs ni bases de datos binarias.
 
-Los tipos de texto permitidos son Markdown, texto, JSON, YAML, CSV, HTML, CSS y SVG, hasta 256 000 bytes. La interfaz muestra su contenido como texto, sin ejecutar HTML o SVG.
+Se permiten documentos y extensiones habituales de código (`.py`, `.ts`, `.tsx`, `.js`, `.sql`, etc.), hasta 256 000 bytes. La interfaz muestra el contenido como texto, sin ejecutar HTML o SVG. La ruta de imágenes admite PNG, JPEG, WebP y GIF hasta 20 MiB, verifica su firma y extensión, exige sesión y solo acepta workspaces. Rechaza imágenes dentro de perfiles Hermes y cachés.
+
+Los mensajes incluyen `attachments: []`. Cada imagen registrada incluye `id`, `path` relativa al proyecto, `name`, `mime_type` y `url` del endpoint autenticado. La generación produce un mensaje `source: artifact` independiente de la respuesta final de Hermes, de modo que un fallo posterior no oculta el archivo guardado.
+
+`template` admite `ux` (predeterminado por compatibilidad), `graphic-designer`, `architect` y `coder`. Ejemplo: `{"name":"Lin","template":"coder","planner_id":"agt_…"}`. El arquitecto debe existir en el mismo proyecto.
 
 ## MCP
 
@@ -59,9 +65,15 @@ El servidor MCP se monta en `/mcp/` mediante el SDK oficial de Python. Los token
 | --- | --- | --- |
 | `get_ux_template` | Hapic | Sin argumentos de negocio |
 | `create_ux_agent` | Hapic | `name` |
-| `project_list_files` | UX | Sin argumentos de negocio |
-| `project_read_file` | UX | `path` relativa a su workspace |
-| `project_write_file` | UX | `path` y `content` de texto |
+| `list_agent_templates` | Hapic | Sin argumentos de negocio |
+| `list_project_agents` | Hapic | Sin argumentos; solo el proyecto autorizado |
+| `create_specialist_agent` | Hapic | `name`, `template`, `planner_id` para coder |
+| `project_list_files` | Especialistas | Sin argumentos de negocio |
+| `project_read_file` | Especialistas | `path` relativa a su workspace |
+| `project_write_file` | Especialistas | `path` y `content`; coder exige lectura del plan vigente |
+| `generate_project_image` | UX y diseñador gráfico | `prompt`, `size` opcional; una imagen facturable guardada y adjunta |
+| `publish_architecture_plan` | Arquitecto | `content` Markdown, hasta 256 KB |
+| `get_architecture_plan` | Coder | Plan del arquitecto vinculado y revisión, sin argumentos |
 
 Las herramientas se filtran en la configuración Hermes y se autorizan de nuevo en el servidor. Que `create_ux_agent` devuelva un perfil y trabajo en cola no significa que su contenedor esté listo; consulta el runtime.
 

@@ -8,6 +8,17 @@ from pathlib import Path
 import docker
 import httpx
 import yaml
+from .templates import tools_for
+
+
+def platform_instructions(agent):
+    from .storage import ROOT
+    if agent["kind"] == "hapic":
+        return (ROOT / "templates/hapic/SOUL.md").read_text(encoding="utf-8")
+    text = "Usa solo las herramientas autorizadas de Hapic. Los archivos persisten en /workspace. No inventes archivos, imágenes ni resultados de ejecución."
+    if agent["kind"] in {"ux", "graphic-designer"}:
+        text += " Para generar imágenes solicitadas usa generate_project_image. Guarda y adjunta un PNG real al chat; no basta con describir una imagen. No repitas una llamada que devolvió saved=true."
+    return text
 
 class RuntimeUnavailable(Exception):
     pass
@@ -42,14 +53,14 @@ class DockerRuntime:
         home = base / "hermes"
         home.mkdir(parents=True, exist_ok=True)
         (base / "workspace").mkdir(exist_ok=True)
-        tools = ["get_ux_template", "create_ux_agent"] if agent["kind"] == "hapic" else ["project_list_files", "project_read_file", "project_write_file"]
+        tools = tools_for(agent["kind"])
         config = {
             "model": {"provider": "openai-api", "default": agent["model"], "base_url": "https://api.openai.com/v1", "api_mode": "codex_responses"},
             "agent": {"reasoning_effort": agent["effort"], "max_turns": 30, "disabled_toolsets": ["terminal", "file", "web", "browser", "code_execution", "delegation", "cronjob", "image", "tts", "skills", "skill_manage"]},
             "terminal": {"backend": "local", "cwd": "/workspace"},
             "platform_toolsets": {"api_server": ["memory", "hapic"]},
             "gateway": {"platforms": {"api_server": {"direct_model_requests": True}}},
-            "mcp_servers": {"hapic": {"url": os.getenv("HAPIC_MCP_URL", "http://host.docker.internal:8000/mcp/"), "headers": {"Authorization": "Bearer ${HAPIC_MCP_TOKEN}"}, "tools": {"include": tools}, "timeout": 30}},
+            "mcp_servers": {"hapic": {"url": os.getenv("HAPIC_MCP_URL", "http://host.docker.internal:8000/mcp/"), "headers": {"Authorization": "Bearer ${HAPIC_MCP_TOKEN}"}, "tools": {"include": tools}, "timeout": 300}},
             "security": {"allow_lazy_installs": False},
         }
         (home / "config.yaml").write_text(yaml.safe_dump(config, allow_unicode=True, sort_keys=False), encoding="utf-8")
@@ -134,7 +145,7 @@ class DockerRuntime:
         except (RuntimeUnavailable, docker.errors.DockerException):
             raise RuntimeUnavailable("No se pudo conectar al contenedor. Revisa Docker e inicia el agente.") from None
         headers = {"Authorization": "Bearer " + store.token(agent["id"], "api"), "Idempotency-Key": request_id, "X-Hermes-Session-Key": f"hapic:{agent['organization_id']}:{agent['project_id']}:{agent['id']}"}
-        payload = {"model": agent["model"], "provider": "openai-api", "model_options": {"reasoning_effort": agent["effort"]}, "conversation": f"hapic-{agent['id']}", "input": text, "store": True, "stream": False}
+        payload = {"model": agent["model"], "provider": "openai-api", "model_options": {"reasoning_effort": agent["effort"]}, "conversation": f"hapic-{agent['id']}", "input": text, "instructions": platform_instructions(agent), "store": True, "stream": False}
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(600, connect=10), trust_env=False) as client:
                 response = await client.post(url + "/v1/responses", headers=headers, json=payload)

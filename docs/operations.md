@@ -76,6 +76,12 @@ Las dependencias de la interfaz se fijan en `frontend/pnpm-lock.yaml`; las de Py
 
 ## Diagnóstico
 
+Para aplicar herramientas nuevas a un agente existente, recréalo con **Reiniciar runtime** después de actualizar el control de gestión. Conserva su memoria, historial y workspace.
+
+La generación de imágenes usa `HAPIC_IMAGE_MODEL` (predeterminado `gpt-image-2.5-flare`), configurado en el entorno del servidor y Compose. Necesita acceso a ese modelo con la key de OpenAI guardada. Los errores informan el código HTTP sin copiar respuestas sensibles del proveedor. No reintentes automáticamente una generación con resultado incierto: puede haberse facturado.
+
+Los PNG se guardan en el workspace del agente y se incluyen en la copia completa de `.hapic/`. Una descripción de imagen o un enlace inventado por un turno anterior no permite recuperar un archivo que nunca se generó. Para un coder sin plan, pide al arquitecto vinculado que publique primero el plan con su herramienta.
+
 | Síntoma | Comprobación |
 | --- | --- |
 | `docker` no se reconoce | Reabre la terminal después de instalar Docker Desktop y revisa su PATH |
@@ -91,7 +97,8 @@ Los logs de Docker pueden contener información sensible. Revísalos localmente 
 ## Validación sin consumo de API
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q --basetemp .hapic/test-local
+$env:HAPIC_DATA_DIR = Join-Path (Get-Location) ('.hapic/test-local-' + [guid]::NewGuid().ToString('N'))
+.\.venv\Scripts\python.exe -m pytest -q --basetemp "$env:HAPIC_DATA_DIR/tmp"
 Set-Location frontend
 pnpm build
 ```

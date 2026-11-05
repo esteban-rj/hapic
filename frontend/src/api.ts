@@ -52,7 +52,8 @@ export type Agent = {
   name: string;
   organization_id: string;
   project_id: string;
-  kind: "ux" | "hapic";
+  kind: "ux" | "hapic" | "graphic-designer" | "architect" | "coder";
+  planner_id: string | null;
   model: string;
   effort: string;
   status: string;
@@ -71,6 +72,8 @@ export type Capabilities = {
   openai: { configured: boolean; source: string };
 };
 export type Template = {
+  kind: Exclude<Agent["kind"], "hapic">;
+  role: string;
   name: string;
   version: string;
   description: string;
@@ -79,6 +82,9 @@ export type Template = {
   deliverables: string[];
   evidence_policy: string;
   instructions: string;
+  recommended_model?: string;
+  recommended_effort?: string;
+  model_guidance?: string;
 };
 export type FileNode = {
   name: string;
@@ -87,4 +93,14 @@ export type FileNode = {
   children?: FileNode[];
   preview?: boolean;
   size?: number;
+  media_type?: "image" | "text";
 };
+
+export const agentRoles: Record<Agent["kind"], string> = {
+  hapic: "Orquestador", ux: "Especialista UX", "graphic-designer": "Diseñador gráfico", architect: "Arquitecto / Planner", coder: "Coder",
+};
+export function imageUrl(projectId: string, path: string, download = false) {
+  return `/api/projects/${projectId}/image?path=${encodeURIComponent(path)}${download ? "&download=true" : ""}`;
+}
+export type Attachment = { id: string; path: string; name: string; url: string; mime_type: string };
+export type Message = { id: number; role: string; content: string; source: string; attachments?: Attachment[] };

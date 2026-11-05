@@ -1,16 +1,21 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import re
 import shutil
 import sqlite3
 import threading
+from contextlib import nullcontext
 from pathlib import Path
+from urllib.parse import urlencode
 
+from .images import IMAGE_TYPES, MAX_IMAGE_BYTES, ImageGenerator, atomic_write, image_type
 from .runtime import DockerRuntime, RuntimeUnavailable
 from .storage import ROOT, DEFAULT_MODEL, Store, now, uid
+from .templates import SPECIALISTS, template as load_template, tools_for
 
-SAFE_EXTENSIONS = {".md", ".txt", ".json", ".yaml", ".yml", ".csv", ".html", ".css", ".svg"}
+SAFE_EXTENSIONS = {".md", ".txt", ".json", ".yaml", ".yml", ".csv", ".html", ".css", ".svg", ".py", ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".sql", ".toml", ".xml", ".scss", ".vue", ".svelte", ".go", ".rs", ".java", ".kt", ".c", ".h", ".cpp", ".cs", ".sh", ".ps1"}
 HIDDEN_NAMES = {"secrets", ".env", "auth.json", "logs", "cache", "installs", ".git", "node_modules", "mcp-tokens"}
 
 
@@ -21,7 +26,7 @@ def valid_name(value):
     return value
 
 
-def safe_path(root: Path, relative: str, *, writing=False):
+def safe_path(root: Path, relative: str, *, writing=False, image=False):
     if not relative or "\\" in relative or ":" in relative:
         raise ValueError("Ruta no permitida.")
     parts = Path(relative).parts
@@ -35,17 +40,28 @@ def safe_path(root: Path, relative: str, *, writing=False):
     path = (root / relative).resolve()
     if not path.is_relative_to(root.resolve()):
         raise ValueError("La ruta está fuera del proyecto autorizado.")
-    if path.suffix.lower() not in SAFE_EXTENSIONS or path.name.startswith("auth") or path.name in {"config.yaml", "config.yml"}:
+    extensions = IMAGE_TYPES if image else SAFE_EXTENSIONS
+    if path.suffix.lower() not in extensions or path.name.startswith("auth") or path.name in {"config.yaml", "config.yml"}:
         raise ValueError("Este tipo de archivo no admite vista previa ni edición.")
-    if not writing and (not path.is_file() or path.stat().st_size > 256_000):
-        raise ValueError("Archivo inexistente o demasiado grande (máximo 256 KB).")
+    limit = MAX_IMAGE_BYTES if image else 256_000
+    if not writing and (not path.is_file() or path.stat().st_size > limit):
+        raise ValueError("Archivo inexistente o demasiado grande.")
     return path
+
+
+def valid_content(content):
+    if not isinstance(content, str) or len(content.encode()) > 256_000:
+        raise ValueError("El documento supera el máximo de 256 KB.")
+    if re.search(r"\bsk-(?:proj-)?[A-Za-z0-9_-]{16,}", content):
+        raise ValueError("No guardes credenciales en el workspace. Usa Configuración.")
+    return content
 
 
 class Service:
     def __init__(self, store: Store, runtime=None):
         self.store = store
         self.runtime = runtime or DockerRuntime()
+        self.images = ImageGenerator()
         self.locks = {}
         self.locks_guard = threading.Lock()
 
@@ -87,13 +103,23 @@ class Service:
         self.create_agent(project["id"], "Hapic", "hapic")
         return project
 
-    def create_agent(self, project_id, name, kind="ux"):
+    def create_agent(self, project_id, name, kind="ux", planner_id=None):
         project = self.project(project_id)
         name = valid_name(name)
+        if kind != "hapic" and kind not in SPECIALISTS:
+            raise ValueError("Plantilla no válida.")
+        if kind == "coder":
+            if not planner_id:
+                raise ValueError("Selecciona un arquitecto/planner del mismo proyecto.")
+            planner = self.agent(planner_id)
+            if planner["project_id"] != project_id or planner["kind"] != "architect":
+                raise ValueError("Selecciona un arquitecto/planner del mismo proyecto.")
+        elif planner_id:
+            raise ValueError("Solo un coder puede vincularse a un arquitecto.")
         settings = self.store.setting("model", {"model": DEFAULT_MODEL, "effort": "xhigh"})
-        agent = {"id": uid("agt"), "organization_id": project["organization_id"], "project_id": project_id, "name": name, "kind": kind, "template": "ux-v1" if kind == "ux" else "hapic-v1", **settings, "status": "pending", "container_id": None, "error": None, "created_at": now()}
+        agent = {"id": uid("agt"), "organization_id": project["organization_id"], "project_id": project_id, "name": name, "kind": kind, "template": load_template(kind)["id"] if kind != "hapic" else "hapic-v1", **settings, "status": "pending", "container_id": None, "error": None, "created_at": now(), "planner_id": planner_id}
         try:
-            self.store.execute("INSERT INTO agents VALUES (:id,:organization_id,:project_id,:name,:kind,:template,:model,:effort,:status,:container_id,:error,:created_at)", agent)
+            self.store.execute("INSERT INTO agents(id,organization_id,project_id,name,kind,template,model,effort,status,container_id,error,created_at,planner_id) VALUES (:id,:organization_id,:project_id,:name,:kind,:template,:model,:effort,:status,:container_id,:error,:created_at,:planner_id)", agent)
         except sqlite3.IntegrityError:
             raise ValueError("Ya existe un agente con ese nombre en el proyecto.") from None
         home = self.store.agent_path(agent) / "hermes"
@@ -146,35 +172,115 @@ class Service:
 
     def tool(self, agent, name, args):
         project = self.project(agent["project_id"])
+        if name not in tools_for(agent["kind"]):
+            raise PermissionError("Herramienta fuera del alcance autorizado.")
         if name == "get_ux_template" and agent["kind"] == "hapic":
-            return json.loads((ROOT / "templates/ux/template.json").read_text(encoding="utf-8"))
-        if name == "create_ux_agent" and agent["kind"] == "hapic":
+            return load_template("ux")
+        if name == "list_agent_templates":
+            return {"templates": [load_template(kind) for kind in SPECIALISTS]}
+        if name == "list_project_agents":
+            return {"agents": self.store.all("SELECT id,name,kind,planner_id,status FROM agents WHERE project_id=?", (project["id"],))}
+        if name in {"create_ux_agent", "create_specialist_agent"} and agent["kind"] == "hapic":
+            kind = "ux" if name == "create_ux_agent" else args["template"]
+            if kind not in SPECIALISTS:
+                raise ValueError("Plantilla no válida.")
             existing = self.store.one("SELECT * FROM agents WHERE project_id=? AND name=?", (project["id"], valid_name(args["name"])))
             if existing:
-                if existing["kind"] != "ux":
-                    raise ValueError("Ese nombre ya pertenece al orquestador. Elige otro para el especialista UX.")
+                if existing["kind"] != kind or (kind == "coder" and existing["planner_id"] != args.get("planner_id")):
+                    raise ValueError("Ese nombre ya pertenece a otro perfil. Elige un nombre diferente.")
                 return {"id": existing["id"], "name": existing["name"], "status": existing["status"], "already_exists": True}
-            created = self.create_agent(project["id"], args["name"])
+            created = self.create_agent(project["id"], args["name"], kind, args.get("planner_id"))
             # Queueing is explicit; the agent never claims readiness from a successful enqueue.
             threading.Thread(target=self.provision, args=(created["id"],), daemon=True).start()
             return {"id": created["id"], "name": created["name"], "status": "pending", "message": "Perfil creado. Provisión en cola; consulta el estado real en la plataforma."}
-        if agent["kind"] != "ux" or name not in {"project_list_files", "project_read_file", "project_write_file"}:
-            raise PermissionError("Herramienta fuera del alcance autorizado.")
+        if name == "generate_project_image":
+            prompt = args["prompt"]
+            valid_content(prompt)
+            data = self.images.generate(self.store.api_key(), prompt, args.get("size", "1024x1024"))
+            image_id = uid("img")
+            relative = f"images/{image_id}.png"
+            path = safe_path(self.store.agent_path(agent) / "workspace", relative, writing=True, image=True)
+            atomic_write(path, data)
+            # The image is on disk before any success message or tool result is emitted.
+            project_relative = path.relative_to(self.store.project_path(project)).as_posix()
+            with self.store.db() as db:
+                message_id = db.execute("INSERT INTO messages(agent_id,role,content,source,created_at) VALUES (?,?,?,?,?)", (agent["id"], "assistant", f"Imagen guardada en {relative}", "artifact", now())).lastrowid
+                db.execute("INSERT INTO images VALUES (?,?,?,?,?,?)", (image_id, agent["id"], message_id, project_relative, "image/png", now()))
+            self.store.event(agent["id"], f"Imagen guardada en el workspace: {relative}")
+            return {"id": image_id, "path": relative, "saved": True, "bytes": len(data), "message": "La imagen ya está guardada y adjunta al chat. No repitas la generación."}
+        if name == "publish_architecture_plan":
+            content = valid_content(args["content"])
+            if not content.strip():
+                raise ValueError("El plan no puede estar vacío.")
+            path = safe_path(self.store.project_path(project) / "workspace", f"plans/{agent['id']}/plan.md", writing=True)
+            with self.lock("plan-" + agent["id"]):
+                atomic_write(path, content.encode("utf-8"))
+            self.store.event(agent["id"], "Plan publicado para los coders vinculados del proyecto.")
+            return {"saved": True, "path": path.relative_to(self.store.project_path(project)).as_posix(), "revision": hashlib.sha256(content.encode()).hexdigest()}
+        if name == "get_architecture_plan":
+            plan = self.architecture_plan(agent)
+            self.store.set_setting("plan-read-" + agent["id"], plan["revision"])
+            return plan
         root = self.store.agent_path(agent) / "workspace"
         if name == "project_list_files":
-            return {"files": [p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file() and not p.is_symlink() and not any(x.startswith(".") for x in p.relative_to(root).parts)][:300]}
+            files = []
+            for p in root.rglob("*"):
+                if len(files) >= 300:
+                    break
+                try:
+                    safe_path(root, p.relative_to(root).as_posix(), image=p.suffix.lower() in IMAGE_TYPES)
+                    files.append(p.relative_to(root).as_posix())
+                except ValueError:
+                    continue
+            return {"files": files}
         path = safe_path(root, args["path"], writing=name == "project_write_file")
         if name == "project_read_file":
             return {"path": args["path"], "content": path.read_text(encoding="utf-8")}
-        content = args["content"]
-        if len(content.encode()) > 256_000:
-            raise ValueError("El documento supera el máximo de 256 KB.")
-        if re.search(r"\bsk-(?:proj-)?[A-Za-z0-9_-]{16,}", content):
-            raise ValueError("No guardes credenciales en el workspace. Usa Configuración.")
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
+        content = valid_content(args["content"])
+        with self.lock("plan-" + agent["planner_id"]) if agent["kind"] == "coder" else nullcontext():
+            if agent["kind"] == "coder" and self.store.setting("plan-read-" + agent["id"]) != self.architecture_plan(agent)["revision"]:
+                raise ValueError("Lee el plan vigente con get_architecture_plan antes de escribir código.")
+            atomic_write(path, content.encode("utf-8"))
         self.store.event(agent["id"], f"Archivo guardado en el workspace: {args['path']}")
         return {"path": args["path"], "bytes": path.stat().st_size, "saved": True}
+
+    def architecture_plan(self, agent):
+        planner = self.agent(agent.get("planner_id"))
+        if planner["kind"] != "architect" or planner["project_id"] != agent["project_id"]:
+            raise PermissionError("El arquitecto está fuera del proyecto autorizado.")
+        root = self.store.project_path(self.project(agent["project_id"]))
+        try:
+            path = safe_path(root / "workspace", f"plans/{planner['id']}/plan.md")
+        except ValueError:
+            raise ValueError("El arquitecto todavía no ha publicado un plan. Pídele que lo publique antes de implementar.") from None
+        content = path.read_text(encoding="utf-8")
+        return {"planner_id": planner["id"], "planner_name": planner["name"], "path": path.relative_to(root).as_posix(), "content": content, "revision": hashlib.sha256(content.encode()).hexdigest()}
+
+    def image_file(self, project_id, relative):
+        project = self.project(project_id)
+        parts = Path(relative).parts
+        # Only workspaces are publishable. Hermes profiles/caches stay private.
+        if parts[:1] == ("agents",) and len(parts) >= 4 and parts[2] == "workspace":
+            owner = self.agent(parts[1])
+            if owner["project_id"] != project_id:
+                raise ValueError("La imagen está fuera del proyecto.")
+        elif parts[:1] != ("workspace",):
+            raise ValueError("Solo se permiten imágenes del workspace.")
+        path = safe_path(self.store.project_path(project), relative, image=True)
+        with path.open("rb") as file:
+            mime = image_type(file.read(16))
+        if mime != IMAGE_TYPES[path.suffix.lower()]:
+            raise ValueError("El contenido no coincide con el formato de la imagen.")
+        return path, mime
+
+    def messages(self, agent_id):
+        agent = self.agent(agent_id)
+        messages = self.store.all("SELECT * FROM messages WHERE agent_id=? ORDER BY id", (agent_id,))
+        images = self.store.all("SELECT * FROM images WHERE agent_id=? ORDER BY created_at", (agent_id,))
+        by_message = {}
+        for item in images:
+            by_message.setdefault(item["message_id"], []).append({**item, "name": Path(item["path"]).name, "url": f"/api/projects/{agent['project_id']}/image?" + urlencode({"path": item["path"]})})
+        return [{**message, "attachments": by_message.get(message["id"], [])} for message in messages]
 
     def tree(self, project_id):
         project = self.project(project_id)
@@ -190,6 +296,14 @@ class Service:
                 node["children"] = [visit(p, depth + 1) for p in sorted(path.iterdir(), key=lambda p: (not p.is_dir(), p.name)) if not p.is_symlink() and not getattr(p, "is_junction", lambda: False)() and not p.name.startswith(".") and p.name not in HIDDEN_NAMES and not p.name.startswith("auth")][:150]
             elif path.is_file():
                 node["size"] = path.stat().st_size
+                is_image = path.suffix.lower() in IMAGE_TYPES
+                node["media_type"] = "image" if is_image else "text"
                 node["preview"] = path.suffix.lower() in SAFE_EXTENSIONS and node["size"] <= 256_000 and path.name not in {"config.yaml", "config.yml"}
+                if is_image:
+                    try:
+                        self.image_file(project_id, relative)
+                        node["preview"] = True
+                    except (ValueError, LookupError):
+                        node["preview"] = False
             return node
         return visit(root)

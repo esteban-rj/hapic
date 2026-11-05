@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 import re
 import secrets
@@ -19,10 +18,16 @@ from pydantic import BaseModel, Field
 from .runtime import RuntimeUnavailable
 from .service import Service, safe_path
 from .storage import DEFAULT_MODEL, EFFORTS, ROOT, Store, now, uid
+from .templates import SPECIALISTS, template as load_template
 
 
 class NameInput(BaseModel):
     name: str = Field(min_length=1, max_length=80)
+
+
+class AgentInput(NameInput):
+    template: str = "ux"
+    planner_id: str | None = None
 
 
 class ModelInput(BaseModel):
@@ -58,6 +63,36 @@ def create_app(data_dir: Path | None = None, runtime=None):
     def create_ux_agent(name: str, ctx: Context) -> dict:
         """Crea un agente UX en el proyecto autorizado. Pregunta antes su nombre al usuario. Devuelve estado real, no garantiza readiness."""
         return service.tool(scope(ctx), "create_ux_agent", {"name": name})
+
+    @mcp.tool()
+    def list_agent_templates(ctx: Context) -> dict:
+        """Lista plantillas de UX, diseño gráfico, arquitectura/planning y coder con sus recomendaciones."""
+        return service.tool(scope(ctx), "list_agent_templates", {})
+
+    @mcp.tool()
+    def list_project_agents(ctx: Context) -> dict:
+        """Lista los agentes del proyecto autorizado, incluidos los arquitectos disponibles para vincular un coder."""
+        return service.tool(scope(ctx), "list_project_agents", {})
+
+    @mcp.tool()
+    def create_specialist_agent(name: str, template: str, ctx: Context, planner_id: str | None = None) -> dict:
+        """Crea un especialista con nombre indicado por el usuario. template: ux, graphic-designer, architect o coder. Un coder requiere planner_id de un architect del mismo proyecto."""
+        return service.tool(scope(ctx), "create_specialist_agent", {"name": name, "template": template, "planner_id": planner_id})
+
+    @mcp.tool()
+    def generate_project_image(prompt: str, ctx: Context, size: str = "1024x1024") -> dict:
+        """Genera UNA imagen solicitada por el usuario con OpenAI Images (facturable). Guarda el PNG persistente y lo adjunta al chat. Tamaños: 1024x1024, 1536x1024, 1024x1536. No repetir si saved=true."""
+        return service.tool(scope(ctx), "generate_project_image", {"prompt": prompt, "size": size})
+
+    @mcp.tool()
+    def publish_architecture_plan(content: str, ctx: Context) -> dict:
+        """Publica el plan Markdown del arquitecto para sus coders vinculados. Incluye archivos, pasos, contratos y criterios de aceptación."""
+        return service.tool(scope(ctx), "publish_architecture_plan", {"content": content})
+
+    @mcp.tool()
+    def get_architecture_plan(ctx: Context) -> dict:
+        """Lee el plan vigente del arquitecto vinculado al coder. Es obligatorio antes de escribir código; devuelve revisión y contenido real."""
+        return service.tool(scope(ctx), "get_architecture_plan", {})
 
     @mcp.tool()
     def project_list_files(ctx: Context) -> dict:
@@ -168,11 +203,17 @@ def create_app(data_dir: Path | None = None, runtime=None):
 
     @app.get("/api/templates/ux")
     def ux_template():
-        return {**json.loads((ROOT / "templates/ux/template.json").read_text(encoding="utf-8")), "instructions": (ROOT / "templates/ux/SOUL.md").read_text(encoding="utf-8")}
+        return load_template("ux", instructions=True)
+
+    @app.get("/api/templates")
+    def templates():
+        return [load_template(kind, instructions=True) for kind in SPECIALISTS]
 
     @app.post("/api/projects/{project_id}/agents", status_code=201)
-    def create_agent(project_id: str, body: NameInput, tasks: BackgroundTasks):
-        agent = service.create_agent(project_id, body.name)
+    def create_agent(project_id: str, body: AgentInput, tasks: BackgroundTasks):
+        if body.template not in SPECIALISTS:
+            raise ValueError("Selecciona una plantilla de especialista válida.")
+        agent = service.create_agent(project_id, body.name, body.template, body.planner_id)
         tasks.add_task(service.provision, agent["id"])
         return agent
 
@@ -188,8 +229,7 @@ def create_app(data_dir: Path | None = None, runtime=None):
 
     @app.get("/api/agents/{agent_id}/messages")
     def messages(agent_id: str):
-        service.agent(agent_id)
-        return store.all("SELECT * FROM messages WHERE agent_id=? ORDER BY id", (agent_id,))
+        return service.messages(agent_id)
 
     @app.get("/api/agents/{agent_id}/events")
     def events(agent_id: str):
@@ -242,6 +282,11 @@ def create_app(data_dir: Path | None = None, runtime=None):
         project = service.project(project_id)
         file = safe_path(store.project_path(project), path)
         return {"path": path, "content": file.read_text(encoding="utf-8"), "size": file.stat().st_size}
+
+    @app.get("/api/projects/{project_id}/image")
+    def read_image(project_id: str, path: str, download: bool = False):
+        file, mime = service.image_file(project_id, path)
+        return FileResponse(file, media_type=mime, filename=file.name, content_disposition_type="attachment" if download else "inline")
 
     @app.put("/api/settings/model")
     def model_settings(body: ModelInput):

@@ -1,4 +1,5 @@
 """Contract/integration tests. Docker and LLM doubles are confined to this test module."""
+import base64
 import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -245,3 +246,151 @@ def test_docker_lifecycle_contract_and_readiness(client, app, monkeypatch):
     with patch.object(runtime, "client", return_value=sdk), patch("backend.runtime.httpx.get", return_value=httpx.Response(200, json={"status": "degraded"})), patch("backend.runtime.time.sleep"):
         with pytest.raises(RuntimeUnavailable, match="aún no está lista"):
             runtime.start(agent, store)
+
+
+def test_specialist_catalog_creation_and_scope(client, app):
+    p = project(client)
+    catalog = client.get("/api/templates").json()
+    assert {t["kind"] for t in catalog} == {"ux", "graphic-designer", "architect", "coder"}
+    architect_template = next(t for t in catalog if t["kind"] == "architect")
+    assert architect_template["recommended_model"] == "gpt-6.1-sol"
+    assert architect_template["recommended_effort"] == "high"
+    architect = client.post(f"/api/projects/{p['id']}/agents", json={"name": "Ada", "template": "architect"}).json()
+    for kind in ("graphic-designer", "coder"):
+        response = client.post(f"/api/projects/{p['id']}/agents", json={"name": kind, "template": kind, "planner_id": architect["id"] if kind == "coder" else None})
+        assert response.status_code == 201
+        agent = response.json()
+        assert agent["kind"] == kind and agent["template"] == kind + "-v1"
+        home = app.state.store.agent_path(agent) / "hermes"
+        assert (home / "SOUL.md").exists() and "Sin recuerdos" in (home / "memories/MEMORY.md").read_text(encoding="utf-8")
+        config = yaml.safe_load((home / "config.yaml").read_text(encoding="utf-8"))
+        assert ("generate_project_image" in config["mcp_servers"]["hapic"]["tools"]["include"]) == (kind == "graphic-designer")
+    assert client.post(f"/api/projects/{p['id']}/agents", json={"name": "bad", "template": "../secrets"}).status_code == 400
+    assert client.post(f"/api/projects/{p['id']}/agents", json={"name": "bad", "template": "coder"}).status_code == 400
+    other_project = project(client)
+    assert client.post(f"/api/projects/{other_project['id']}/agents", json={"name": "bad", "template": "coder", "planner_id": architect["id"]}).status_code == 400
+    designer = next(a for a in client.get("/api/state").json()["agents"] if a["kind"] == "graphic-designer")
+    with pytest.raises(PermissionError):
+        app.state.service.tool(designer, "create_specialist_agent", {"name": "No", "template": "architect"})
+
+
+def test_coder_requires_current_plan_and_keeps_workspaces_separate(client, app):
+    p = project(client)
+    service = app.state.service
+    architect = service.create_agent(p["id"], "Ada", "architect")
+    coder = service.create_agent(p["id"], "Lin", "coder", architect["id"])
+    with pytest.raises(ValueError, match="no ha publicado"):
+        service.tool(coder, "get_architecture_plan", {})
+    plan = "# Plan\nCrear src/app.py con una función hello que devuelva hola. Probar con pytest."
+    published = service.tool(architect, "publish_architecture_plan", {"content": plan})
+    assert published["saved"]
+    assert client.get(f"/api/projects/{p['id']}/file", params={"path": published["path"]}).json()["content"] == plan
+    with pytest.raises(ValueError, match="Lee el plan"):
+        service.tool(coder, "project_write_file", {"path": "src/app.py", "content": "def hello(): return 'hola'"})
+    read = service.tool(coder, "get_architecture_plan", {})
+    assert read["content"] == plan and read["revision"] == published["revision"]
+    assert service.tool(coder, "project_write_file", {"path": "src/app.py", "content": "def hello(): return 'hola'"})["saved"]
+    assert service.tool(architect, "project_list_files", {}) == {"files": []}
+    service.tool(architect, "publish_architecture_plan", {"content": plan + "\nAñadir un caso de error."})
+    with pytest.raises(ValueError, match="Lee el plan"):
+        service.tool(coder, "project_write_file", {"path": "tests/test_app.py", "content": "# test"})
+    service.tool(coder, "get_architecture_plan", {})
+    assert service.tool(coder, "project_write_file", {"path": "tests/test_app.py", "content": "# test"})["saved"]
+    with pytest.raises(PermissionError):
+        service.tool(coder, "publish_architecture_plan", {"content": "Override"})
+
+
+PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j/+kAAAAASUVORK5CYII=")
+
+
+def test_images_persist_chat_preview_download_and_restart(client, app):
+    p = project(client)
+    service = app.state.service
+    designer = service.create_agent(p["id"], "Miro", "graphic-designer")
+    with patch.object(service.images, "generate", return_value=PNG):
+        result = service.tool(designer, "generate_project_image", {"prompt": "Un círculo naranja"})
+    assert result["saved"] and result["path"].startswith("images/")
+    assert (app.state.store.agent_path(designer) / "workspace" / result["path"]).read_bytes() == PNG
+    messages = client.get(f"/api/agents/{designer['id']}/messages").json()
+    attachment = messages[0]["attachments"][0]
+    assert messages[0]["source"] == "artifact"
+    response = client.get(attachment["url"])
+    assert response.status_code == 200 and response.content == PNG
+    assert response.headers["content-type"] == "image/png"
+    assert "no-store" in response.headers["cache-control"] and response.headers["x-content-type-options"] == "nosniff"
+    response = client.get(attachment["url"] + "&download=true")
+    assert response.headers["content-disposition"].startswith("attachment;")
+    tree = client.get(f"/api/projects/{p['id']}/tree").json()
+    def descendants(node):
+        yield node
+        for child in node.get("children", []):
+            yield from descendants(child)
+    image = next(n for n in descendants(tree) if n["path"] == attachment["path"])
+    assert image["media_type"] == "image" and image["preview"]
+    restarted = Service(Store(app.state.store.root), TestRuntime())
+    assert restarted.messages(designer["id"])[0]["attachments"][0] == attachment
+    assert restarted.image_file(p["id"], attachment["path"])[0].read_bytes() == PNG
+    # Session authentication also applies to image bytes, not only JSON routes.
+    client.cookies.clear()
+    assert client.get(attachment["url"]).status_code == 401
+
+
+def test_image_paths_signatures_membership_and_tool_permissions(client, app):
+    p = project(client)
+    service = app.state.service
+    ux = service.create_agent(p["id"], "Nora")
+    architect = service.create_agent(p["id"], "Ada", "architect")
+    with pytest.raises(PermissionError):
+        service.tool(architect, "generate_project_image", {"prompt": "No"})
+    root = app.state.store.agent_path(ux)
+    (root / "workspace/bad.png").write_text("<script>alert(1)</script>")
+    (root / "hermes/private.png").write_bytes(PNG)
+    for relative in ["../../secrets/key.png", f"agents/{ux['id']}/hermes/private.png", f"agents/{ux['id']}/workspace/bad.png", f"agents/{ux['id']}/workspace/../hermes/private.png"]:
+        assert client.get(f"/api/projects/{p['id']}/image", params={"path": relative}).status_code == 400
+    with patch.object(service.images, "generate", return_value=PNG):
+        service.tool(ux, "generate_project_image", {"prompt": "Un círculo"})
+    attachment = service.messages(ux["id"])[0]["attachments"][0]
+    p2 = project(client)
+    assert client.get(f"/api/projects/{p2['id']}/image", params={"path": attachment["path"]}).status_code == 400
+    app.state.store.execute("DELETE FROM memberships")
+    assert client.get(attachment["url"]).status_code == 404
+
+
+def test_images_api_contract_and_redacted_failures(monkeypatch):
+    import base64
+    import httpx
+    from backend.images import ImageGenerator
+    monkeypatch.delenv("HAPIC_IMAGE_MODEL", raising=False)
+    seen = []
+    def handler(request):
+        seen.append(request)
+        return httpx.Response(200, json={"data": [{"b64_json": base64.b64encode(PNG).decode()}]})
+    real_client = httpx.Client
+    with patch("backend.images.httpx.Client", side_effect=lambda **kwargs: real_client(transport=httpx.MockTransport(handler))):
+        assert ImageGenerator().generate("dummy-never-sent", "A circle", "1536x1024") == PNG
+    payload = json.loads(seen[0].content)
+    assert str(seen[0].url) == "https://api.openai.com/v1/images/generations"
+    assert payload == {"model": "gpt-image-2.5-flare", "prompt": "A circle", "n": 1, "size": "1536x1024", "quality": "medium", "output_format": "png"}
+    for response in [httpx.Response(403, text="secret-provider-body"), httpx.Response(200, json={"data": [{"url": "http://169.254.169.254/private"}]}), httpx.Response(200, json={"data": [{"b64_json": "invalid"}]})]:
+        with patch("backend.images.httpx.Client", side_effect=lambda **kwargs: real_client(transport=httpx.MockTransport(lambda request: response))):
+            with pytest.raises(RuntimeUnavailable) as error:
+                ImageGenerator().generate("dummy-never-sent", "Circle")
+            assert "secret-provider-body" not in str(error.value) and "169.254" not in str(error.value)
+
+
+def test_failed_chat_keeps_already_generated_image(client, app):
+    p = project(client)
+    service = app.state.service
+    designer = service.create_agent(p["id"], "Miro", "graphic-designer")
+    app.state.store.secret("openai", "dummy-never-sent")
+    app.state.store.execute("UPDATE agents SET container_id='double' WHERE id=?", (designer["id"],))
+    class ImageThenFailure(TestRuntime):
+        async def chat(self, agent, store, text, request_id):
+            with patch.object(service.images, "generate", return_value=PNG):
+                service.tool(agent, "generate_project_image", {"prompt": text})
+            raise RuntimeUnavailable("Hermes double failed after generation")
+    service.runtime = ImageThenFailure()
+    assert client.post(f"/api/agents/{designer['id']}/chat", json={"content": "Circle"}).status_code == 503
+    messages = service.messages(designer["id"])
+    assert len(messages) == 2 and messages[-1]["attachments"]
+    assert client.get(messages[-1]["attachments"][0]["url"]).content == PNG

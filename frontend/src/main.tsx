@@ -28,6 +28,8 @@ import {
   bootstrap,
   post,
   put,
+  agentRoles,
+  imageUrl,
   type Agent,
   type Capabilities,
   type FileNode,
@@ -43,6 +45,8 @@ import {
   Modal,
   TemplateCard,
   Tree,
+  CreateAgentModal,
+  ImagePreview,
 } from "./components";
 import "./style.css";
 
@@ -62,7 +66,8 @@ const nav = [
 function App() {
   const [state, setState] = useState<State>();
   const [caps, setCaps] = useState<Capabilities>();
-  const [template, setTemplate] = useState<Template>();
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [createTemplate, setCreateTemplate] = useState<Template>();
   const [orgId, setOrgId] = useState("");
   const [projectId, setProjectId] = useState("");
   const [agentId, setAgentId] = useState("");
@@ -78,6 +83,7 @@ function App() {
     path: string;
     content: string;
     size: number;
+    media_type?: "image" | "text";
   }>();
   const [runtime, setRuntime] = useState<any>();
   const [events, setEvents] = useState<any[]>([]);
@@ -105,7 +111,7 @@ function App() {
       .then(() =>
         Promise.all([
           refresh(),
-          api<Template>("/templates/ux").then(setTemplate),
+          api<Template[]>("/templates").then(setTemplates),
         ]),
       )
       .catch((e) => setError(e.message));
@@ -256,6 +262,10 @@ function App() {
     });
   }
   async function readFile(n: FileNode) {
+    if (n.media_type === "image") {
+      setFile({ path: n.path, content: "", size: n.size || 0, media_type: "image" });
+      return;
+    }
     await action(async () =>
       setFile(
         await api(
@@ -354,7 +364,7 @@ function App() {
             >
               <Icon size={18} />
               {n}
-              {n === "Plantillas" ? <span className="nav-count">1</span> : null}
+              {n === "Plantillas" ? <span className="nav-count">{templates.length}</span> : null}
             </button>
           ))}
         </nav>
@@ -425,7 +435,7 @@ function App() {
               {title}
               {page === "Agentes" && agent ? (
                 <span className="tag">
-                  {agent.kind === "hapic" ? "Orquestador" : "Agente UX"}
+                  {agentRoles[agent.kind]}
                 </span>
               ) : null}
             </h1>
@@ -501,14 +511,14 @@ function App() {
                     <div>
                       <Sparkles size={19} />
                       <strong>
-                        {agents.filter((a) => a.kind === "ux").length}
+                        {agents.filter((a) => a.kind !== "hapic").length}
                       </strong>
                       <span>Especialistas</span>
                     </div>
                     <div>
                       <Layers size={19} />
-                      <strong>1</strong>
-                      <span>Plantilla disponible</span>
+                      <strong>{templates.length}</strong>
+                      <span>Plantillas disponibles</span>
                     </div>
                   </div>
                   {!org ? (
@@ -521,7 +531,7 @@ function App() {
                       </h2>
                       <p>
                         Crea una organización, abre tu primer proyecto y deja
-                        que Hapic te ayude a sumar tu primer agente UX.
+                        que Hapic te ayude a sumar tu primer especialista.
                       </p>
                       <button
                         className="primary"
@@ -759,25 +769,23 @@ function App() {
                         }
                         changed={refresh}
                         onSettings={() => setPage("Configuración")}
-                        onCreated={(id) => {
-                          setAgentId(id);
-                          setTab("Archivos");
-                        }}
+                        templates={templates}
+                        onPrepare={(kind) => setCreateTemplate(templates.find((t) => t.kind === kind))}
                       />
                       <div className="agent-side">
-                        {agent.kind === "hapic" && template ? (
-                          <TemplateCard template={template} compact />
+                        {agent.kind !== "hapic" && templates.find((t) => t.kind === agent.kind) ? (
+                          <TemplateCard template={templates.find((t) => t.kind === agent.kind)!} compact />
                         ) : (
                           <div className="card compact-card">
                             <Sparkles size={20} />
-                            <h3>Experiencia con propósito</h3>
+                            <h3>Un equipo para tu proyecto</h3>
                             <p>
-                              Brief, flujos, arquitectura, wireframes y
-                              accesibilidad, con hipótesis explícitas y
-                              evidencia trazable.
+                              UX, diseño gráfico, arquitectura y código. El arquitecto publica el plan; el coder lo implementa.
                             </p>
                           </div>
                         )}
+                        {agent.planner_id ? <div className="card compact-card"><h3>Arquitecto vinculado</h3><p>{state.agents.find((a) => a.id === agent.planner_id)?.name}</p><p>Lee su plan publicado antes de escribir código.</p></div> : null}
+                        <button className="secondary" onClick={() => setPage("Plantillas")}><Plus size={15} /> Añadir especialista</button>
                         <RuntimeCard agent={agent} runtime={runtime} />
                       </div>
                     </div>
@@ -827,7 +835,7 @@ function App() {
                           ) : null}
                         </div>
                         {file ? (
-                          <pre>{file.content}</pre>
+                          file.media_type === "image" ? <ImagePreview key={file.path} src={imageUrl(projectId, file.path)} alt={file.path.split("/").pop() || "Imagen del proyecto"} download={imageUrl(projectId, file.path, true)} /> : <pre>{file.content}</pre>
                         ) : (
                           <Empty
                             icon={<FileText size={28} />}
@@ -874,9 +882,9 @@ function App() {
                 />
               )
             ) : null}
-            {page === "Plantillas" && template ? (
+            {page === "Plantillas" && templates.length ? (
               <div className="templates-layout">
-                <TemplateCard template={template} />
+                <div className="template-catalog">{templates.map((item) => <TemplateCard key={item.kind} template={item} onUse={() => setCreateTemplate(item)} />)}</div>
                 <div className="template-explanation">
                   <span className="eyebrow">
                     UN PUNTO DE PARTIDA, NO UNA COPIA
@@ -905,8 +913,7 @@ function App() {
                     <div>
                       <h4>Resultados que permanecen</h4>
                       <p>
-                        Documentos reales, visibles desde el explorador de
-                        archivos.
+                        Código, planes e imágenes reales, visibles desde el explorador y el chat.
                       </p>
                     </div>
                   </div>
@@ -1128,6 +1135,7 @@ function App() {
           {toast}
         </div>
       ) : null}
+      {createTemplate ? <CreateAgentModal template={createTemplate} projects={projects} agents={state?.agents || []} initialProjectId={projectId} close={() => setCreateTemplate(undefined)} created={async (created) => { await refresh(); setCreateTemplate(undefined); openAgent(created); setToast("Perfil creado. Consulta el estado real del runtime."); }} /> : null}
       {modal ? (
         <Modal
           title={
@@ -1292,7 +1300,7 @@ function AgentTable({
                   <span>
                     <strong>{a.name}</strong>
                     <small>
-                      {a.kind === "hapic" ? "Orquestador" : "Especialista UX"}
+                      {agentRoles[a.kind]}
                     </small>
                   </span>
                 </button>

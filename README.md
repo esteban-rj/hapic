@@ -9,7 +9,7 @@ Los cinco bocetos previos están conservados en [docs/mockups](docs/mockups). La
 - [Arquitectura](docs/architecture.md): componentes, datos, provisión y límites de acceso.
 - [API y MCP](docs/api.md): rutas, sesión local, herramientas y errores.
 - [Operación](docs/operations.md): arranque, credenciales, persistencia, copias y diagnóstico.
-- [Changelog](CHANGELOG.md): cambios de la versión `0.1.0`.
+- [Changelog](CHANGELOG.md): versiones y cambios pendientes de publicación.
 
 ## Ejecutar localmente en Windows
 
@@ -34,10 +34,23 @@ Durante desarrollo: inicia el backend en 8000 y ejecuta `pnpm dev` dentro de `fr
 1. Crea una organización y un proyecto desde la plataforma. Se guardan registros, pertenencia del operador local y carpetas reales. El proyecto recibe un perfil Hapic nuevo.
 2. En Configuración, define la API key de OpenAI mediante el formulario dedicado. También puedes definir `OPENAI_API_KEY` en el entorno del servidor o en un archivo `.env` ignorado por Git. Nunca la pegues en el chat.
 3. Inicia Docker Desktop. Abre Hapic y pulsa **Iniciar runtime**. Si ya hay key al crear un proyecto, se solicita su arranque automáticamente.
-4. Pide crear un agente UX. Hapic usa la plantilla versionada, pregunta el nombre si falta y llama la herramienta MCP de provisión. El perfil nuevo y su contenedor tienen estado propio.
+4. Pide crear un especialista UX, diseñador gráfico, arquitecto/planner o coder; también puedes ir a **Plantillas → Usar plantilla**. Hapic pregunta el nombre si falta y usa las herramientas MCP de provisión.
 5. Abre el especialista, conversa y consulta archivos/actividad. Los entregables aparecen solo cuando se guardan de verdad.
 
-Sin Docker o sin key, el chat de IA está deshabilitado. **Preparar un agente UX** abre un formulario guiado explícitamente identificado como «sin IA»; permite poner nombre y materializar la plantilla. No se simulan mensajes de Hermes ni contenedores activos.
+Sin Docker o sin key, el chat de IA está deshabilitado. **Preparar** o **Usar plantilla** permite crear el perfil desde un formulario; no solicita inferencia ni simula mensajes de Hermes o contenedores activos.
+
+## Especialistas, planes e imágenes
+
+| Plantilla | Trabajo |
+| --- | --- |
+| UX | Brief, flujos, wireframes, accesibilidad e imágenes solicitadas |
+| Diseñador gráfico | Brief visual y generación real de PNG guardados y adjuntos al chat |
+| Arquitecto / Planner | Arquitectura y plan compartido con tareas, archivos, contratos y validación |
+| Coder | Implementación en archivos siguiendo el plan del arquitecto vinculado |
+
+Crea primero el arquitecto y después el coder, seleccionando ese arquitecto del mismo proyecto. El arquitecto publica mediante `publish_architecture_plan`; el coder usa `get_architecture_plan` antes de escribir. Si el plan cambia, debe volver a leerlo. Para el planner se recomienda un modelo de capacidad media a superior (`gpt-6.1-sol`, esfuerzo `high` para trabajo complejo); las preferencias globales se conservan y pueden ajustarse en cada conversación. El coder puede escribir código y pruebas, pero no dispone de terminal para ejecutarlas.
+
+`generate_project_image` utiliza la key guardada y OpenAI Images. El modelo de imagen predeterminado es `gpt-image-2.5-flare`, configurable en el servidor con `HAPIC_IMAGE_MODEL`; es independiente del modelo conversacional. Cada llamada genera una imagen y puede tener coste. El PNG se guarda primero en `agents/<id>/workspace/images/`, luego se registra un adjunto del chat. Se conserva incluso si falla la respuesta final de Hermes. Las imágenes tienen vista previa y descarga en **Archivos**. No se descargan URLs arbitrarias ni se depende de enlaces temporales del proveedor.
 
 El modelo inicial es `gpt-6.1-sol` y el esfuerzo `xhigh`. Ambos se pueden editar para agentes nuevos en Configuración y para un agente existente desde el compositor. Los cambios por agente se envían en el siguiente turno mediante `provider: openai-api` y `model_options.reasoning_effort`. No se usa la suscripción ni se importan credenciales de Codex.
 
@@ -65,7 +78,7 @@ El control de gestión tiene acceso al socket Docker para provisionar contenedor
     organization.json
     projects/<project-id>/
       project.json
-      workspace/
+      workspace/plans/<planner-id>/plan.md  # plan compartido por cada arquitecto
       agents/<agent-id>/
         hermes/                        # HERMES_HOME → /opt/data
           SOUL.md
@@ -74,12 +87,13 @@ El control de gestión tiene acceso al socket Docker para provisionar contenedor
           memories/USER.md
           skills/
           state.db                     # aparece cuando lo crea el runtime Hermes
-        workspace/                     # → /workspace; herramientas MCP limitadas a este espacio
+        workspace/                     # → /workspace; código y documentos del agente
+          images/                      # PNG persistentes generados por la herramienta
 ```
 
 La memoria resumida de Hermes y su historial completo no son lo mismo: `memories/` contiene contexto persistente y `state.db` conserva sesiones/historial de Hermes. La plataforma conserva además los mensajes visibles en su SQLite. No copia memorias, sesiones ni credenciales de agentes anteriores al aplicar una plantilla.
 
-La pertenencia de organización se valida en servidor. Cada token MCP identifica un agente y su proyecto, sin aceptar un proyecto arbitrario del modelo. Las herramientas UX solo listan/leen/escriben documentos del workspace de ese agente; rutas absolutas, traversal, enlaces, secretos, configuración sensible y archivos binarios se rechazan. Las carpetas organizan datos; la autorización del servidor, las herramientas permitidas y los montajes del contenedor controlan el acceso.
+La pertenencia de organización se valida en servidor. Cada token MCP identifica un agente y su proyecto, sin aceptar un proyecto arbitrario del modelo. Las herramientas de archivos operan en el workspace propio; el plan se comparte mediante una herramienta dedicada con los coders vinculados. Se rechazan rutas absolutas, traversal, enlaces, secretos y configuración sensible. Las imágenes se sirven por una ruta autenticada que comprueba formato, tamaño y pertenencia al workspace.
 
 La key se cifra con Fernet y una clave maestra local. Nunca se devuelve por API, ni se guarda en localStorage, ni se incluye en errores de validación. El maestro y los datos están ignorados por Git. Un administrador del equipo o del motor Docker puede acceder a secretos del proceso/contenedor; el cifrado local no sustituye un gestor de secretos multiusuario. Al rotar la key, reinicia los agentes; eliminarla del servidor no borra el entorno de contenedores ya creados.
 
@@ -93,12 +107,14 @@ Los datos y el estado se guardan localmente. Las consultas, memoria/contexto nec
 - [Hermes: perfiles](https://hermes-agent.nousresearch.com/docs/user-guide/profiles): un `HERMES_HOME` por agente, independiente del directorio de trabajo.
 - [Hermes: Docker](https://hermes-agent.nousresearch.com/docs/user-guide/docker): imagen oficial, `/opt/data` y supervisión del gateway.
 - [OpenAI: GPT-6.1 Sol](https://developers.openai.com/api/docs/models/gpt-6.1-sol): `xhigh` admitido; function calling exige Responses API.
+- [OpenAI: generación de imágenes](https://developers.openai.com/api/docs/guides/image-generation): Images API y resultados base64 guardados como PNG.
 
 La configuración fija explícitamente `model.api_mode: codex_responses`, el nombre del transporte Responses de Hermes, hacia `https://api.openai.com/v1`. La UI no infiere compatibilidad por el nombre del endpoint público de Hermes. El cliente verifica `/health/detailed` autenticado y `status: ok` antes de marcar el runtime disponible. El acceso real al modelo se verifica en el primer turno, no mediante una simple comprobación de Docker.
 
 ## Pruebas y alcance verificado
 
 ```powershell
+$env:HAPIC_DATA_DIR = Join-Path (Get-Location) ('.hapic/test-local-' + [guid]::NewGuid().ToString('N'))
 .\.venv\Scripts\python.exe -m pytest -q --basetemp .hapic/test-local
 Set-Location frontend
 pnpm build
@@ -106,7 +122,7 @@ pnpm build
 
 En un sandbox Windows que bloquee sockets, las pruebas ASGI/TestClient y el servidor pueden requerir ejecución autorizada fuera de ese aislamiento. No se cambia el firewall ni las protecciones globales.
 
-Las pruebas cubren persistencia al reabrir almacenamiento, valores por defecto, CSRF/origen, pertenencia, secretos cifrados y errores redactados, rutas, alcance MCP, protocolo MCP real, plantillas limpias, cambios de modelo, idempotencia de chat y contrato `/v1/responses`. Los dobles de Docker/Hermes solo existen en `tests/`; no son un modo de ejecución de producción. La prueba de enlace simbólico se omite cuando Windows no concede el permiso necesario.
+Las pruebas cubren persistencia al reabrir almacenamiento, valores por defecto, CSRF/origen, pertenencia, secretos cifrados y errores redactados, rutas, alcance MCP, protocolo MCP real, plantillas limpias, cambios de modelo, idempotencia de chat y contrato `/v1/responses`. También comprueban las cuatro plantillas, el vínculo arquitecto/coder, la lectura del plan vigente antes de escribir y la generación, persistencia, permisos y descarga de imágenes con un doble de OpenAI Images. El resultado verificado es 16 pruebas aprobadas y 1 omitida. Los dobles de Docker/Hermes e Images se utilizan solo en pruebas; no son un modo de ejecución de producción. La prueba de enlace simbólico se omite cuando Windows no concede el permiso necesario.
 
 **Verificación local de despliegue:** después de instalar Docker Desktop y WSL2 y reiniciar Windows, el motor Linux ejecutó un contenedor `hello-world` real. La imagen de Hapic se construyó y Compose la inició con estado `healthy` en `127.0.0.1:8000`, conservando el almacenamiento existente. Se comprobó un montaje real de Windows desde el provisionador y las APIs autenticadas de dos contenedores oficiales Hermes (Hapic y UX). Sus perfiles tienen `state.db` y directorios de memoria persistentes. La plataforma ya registra respuestas reales de Hermes usando la credencial configurada por el usuario, con `gpt-6.1-sol` y `xhigh`.
 
