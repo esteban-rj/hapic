@@ -49,6 +49,7 @@ import {
   ImagePreview,
 } from "./components";
 import "./style.css";
+import { ModelSelect } from "./ModelSelect";
 
 type Page =
   | "Resumen"
@@ -952,12 +953,12 @@ function App() {
                       Puedes cambiarlo en cada conversación.
                     </p>
                     <label htmlFor="default-model">Modelo de OpenAI</label>
-                    <input
+                    <ModelSelect
                       id="default-model"
                       value={model}
-                      onChange={(e) => setModel(e.target.value)}
-                      required
-                      pattern="[a-zA-Z0-9._-]+"
+                      savedValue={state.settings.model}
+                      onChange={setModel}
+                      disabled={busy}
                     />
                     <label htmlFor="default-effort">
                       Esfuerzo de razonamiento

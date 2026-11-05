@@ -52,7 +52,7 @@ Crea primero el arquitecto y después el coder, seleccionando ese arquitecto del
 
 `generate_project_image` utiliza la key guardada y OpenAI Images. El modelo de imagen predeterminado es `gpt-image-2.5-flare`, configurable en el servidor con `HAPIC_IMAGE_MODEL`; es independiente del modelo conversacional. Cada llamada genera una imagen y puede tener coste. El PNG se guarda primero en `agents/<id>/workspace/images/`, luego se registra un adjunto del chat. Se conserva incluso si falla la respuesta final de Hermes. Las imágenes tienen vista previa y descarga en **Archivos**. No se descargan URLs arbitrarias ni se depende de enlaces temporales del proveedor.
 
-El modelo inicial es `gpt-6.1-sol` y el esfuerzo `xhigh`. Ambos se pueden editar para agentes nuevos en Configuración y para un agente existente desde el compositor. Los cambios por agente se envían en el siguiente turno mediante `provider: openai-api` y `model_options.reasoning_effort`. No se usa la suscripción ni se importan credenciales de Codex.
+El modelo inicial es `gpt-6.1-sol` y el esfuerzo `xhigh`. Ambos se pueden elegir mediante selectores para agentes nuevos en Configuración y para un agente existente desde el compositor. El selector de modelos ofrece nombres legibles y conserva los identificadores personalizados ya guardados. Los cambios por agente se envían en el siguiente turno mediante `provider: openai-api` y `model_options.reasoning_effort`. No se usa la suscripción ni se importan credenciales de Codex.
 
 ## Ejecutar con Docker Compose
 

@@ -2,10 +2,11 @@
 
 Este archivo registra los cambios del proyecto. Las versiones siguen el esquema `MAJOR.MINOR.PATCH`.
 
-## Sin publicar — 2026-11-03
+## Sin publicar — 2026-11-05
 
 ### Añadido
 
+- Selector de modelos en Configuración y en cada conversación, con nombres legibles y conservación de modelos personalizados ya guardados.
 - Templates de diseñador gráfico, arquitecto/planner y coder, además del especialista UX existente.
 - Catálogo con creación desde la interfaz, selección de proyecto y recomendaciones de modelo.
 - Herramientas de Hapic para consultar templates, listar agentes y crear especialistas.

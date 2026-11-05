@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ModelSelect } from "./ModelSelect";
 import {
   ChevronDown,
   ChevronRight,
@@ -462,10 +463,11 @@ export function Chat({
           <div className="composer-selects">
             <label>
               <span className="sr-only">Modelo de la conversación</span>
-              <input
+              <ModelSelect
                 value={model}
-                onChange={(e) => setModel(e.target.value)}
-                aria-label="Modelo de la conversación"
+                savedValue={agent.model}
+                onChange={setModel}
+                ariaLabel="Modelo de la conversación"
                 disabled={busy}
               />
             </label>

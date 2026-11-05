@@ -1282,18 +1282,11 @@ textarea::placeholder {
   display: flex;
   align-items: center;
   gap: 5px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 .composer-selects label {
   margin: 0;
-}
-.composer-selects input {
-  font-size: 9px;
-  width: 133px;
-  border: 0;
-  background: #f8f8f8;
-  padding: 6px;
-  border-radius: 4px;
-  color: #737373;
 }
 .composer-selects select {
   width: 70px;
@@ -1302,6 +1295,11 @@ textarea::placeholder {
   padding: 6px;
   color: #737373;
   background: #f8f8f8;
+}
+.composer-selects .model-select {
+  width: 155px;
+  max-width: 100%;
+  border-radius: 4px;
 }
 .send {
   width: 29px;
