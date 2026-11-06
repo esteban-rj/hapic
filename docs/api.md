@@ -19,7 +19,7 @@ Los hosts de la interfaz y API se limitan a `localhost`, `127.0.0.1` y `::1`. Lo
 | POST | `/api/organizations` | Crear organización: `{"name":"Estudio"}` |
 | POST | `/api/organizations/{org_id}/projects` | Crear proyecto y perfil Hapic: `{"name":"Producto"}` |
 | GET | `/api/templates/ux` | Plantilla UX, capacidades, entregables e instrucciones |
-| GET | `/api/templates` | Catálogo UX, diseñador, arquitecto y coder, con recomendaciones |
+| GET | `/api/templates` | Catálogo UX, diseñador, arquitecto, coder y community manager, con recomendaciones |
 | POST | `/api/projects/{project_id}/agents` | Crear perfil: `{"name":"Nora","template":"ux"}`; coder exige `planner_id` |
 | POST | `/api/agents/{agent_id}/start` | Solicitar inicio o recreación del runtime |
 | GET | `/api/agents/{agent_id}/runtime` | Estado actual y readiness de Hermes |
@@ -55,7 +55,9 @@ Se permiten documentos y extensiones habituales de código (`.py`, `.ts`, `.tsx`
 
 Los mensajes incluyen `attachments: []`. Cada imagen registrada incluye `id`, `path` relativa al proyecto, `name`, `mime_type` y `url` del endpoint autenticado. La generación produce un mensaje `source: artifact` independiente de la respuesta final de Hermes, de modo que un fallo posterior no oculta el archivo guardado.
 
-`template` admite `ux` (predeterminado por compatibilidad), `graphic-designer`, `architect` y `coder`. Ejemplo: `{"name":"Lin","template":"coder","planner_id":"agt_…"}`. El arquitecto debe existir en el mismo proyecto.
+`template` admite `ux` (predeterminado por compatibilidad), `graphic-designer`, `architect`, `coder` y `community-manager`. Ejemplo: `{"name":"Lin","template":"coder","planner_id":"agt_…"}`. El arquitecto debe existir en el mismo proyecto. Community Manager no requiere `planner_id`: `{"name":"Alma","template":"community-manager"}`.
+
+Community Manager solo dispone de herramientas de archivos. No hay rutas OAuth ni herramientas sociales implementadas; la [propuesta de conexión a Instagram y YouTube](community-manager.md) detalla el trabajo pendiente.
 
 ## MCP
 

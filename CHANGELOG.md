@@ -8,6 +8,8 @@ Este archivo registra los cambios del proyecto. Las versiones siguen el esquema 
 
 - Selector de modelos en Configuración y en cada conversación, con nombres legibles y conservación de modelos personalizados ya guardados.
 - Templates de diseñador gráfico, arquitecto/planner y coder, además del especialista UX existente.
+- Perfil Community Manager para Instagram y YouTube, creable por interfaz y MCP, con estrategia, calendario, copys, guiones, respuestas propuestas y métricas aportadas.
+- Propuesta documentada de conectores sociales mediante OAuth, permisos por cuenta/proyecto, tokens cifrados y cola de publicaciones; no hay conexiones sociales activas.
 - Catálogo con creación desde la interfaz, selección de proyecto y recomendaciones de modelo.
 - Herramientas de Hapic para consultar templates, listar agentes y crear especialistas.
 - Vinculación de coder a arquitecto del mismo proyecto; publicación y lectura del plan compartido con revisión SHA-256.
@@ -24,7 +26,8 @@ Este archivo registra los cambios del proyecto. Las versiones siguen el esquema 
 ### Verificación
 
 - Pruebas de catálogo, permisos, planes vigentes, contrato Images API, persistencia, descarga y fallos posteriores con dobles locales. Sin llamadas facturables adicionales.
-- Resultado automatizado: 16 pruebas aprobadas, 1 omitida por permisos de enlaces simbólicos en Windows y build TypeScript/Vite correcto.
+- Resultado automatizado: 17 pruebas aprobadas, 1 omitida por permisos de enlaces simbólicos en Windows; incluye creación idempotente de Community Manager mediante MCP, persistencia de borradores y denegación de herramientas ajenas al perfil.
+- Build TypeScript/Vite correcto con el catálogo de cinco especialistas, incluido Community Manager.
 - Verificación en navegador del catálogo, creación de coder vinculado y carga de imágenes en chat y Archivos con una imagen local de prueba.
 - Actualización de Compose y de los dos runtimes existentes, con readiness comprobado y conservación de organizaciones, proyectos, agentes y mensajes.
 

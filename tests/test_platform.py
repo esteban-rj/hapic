@@ -251,12 +251,12 @@ def test_docker_lifecycle_contract_and_readiness(client, app, monkeypatch):
 def test_specialist_catalog_creation_and_scope(client, app):
     p = project(client)
     catalog = client.get("/api/templates").json()
-    assert {t["kind"] for t in catalog} == {"ux", "graphic-designer", "architect", "coder"}
+    assert {t["kind"] for t in catalog} == {"ux", "graphic-designer", "architect", "coder", "community-manager"}
     architect_template = next(t for t in catalog if t["kind"] == "architect")
     assert architect_template["recommended_model"] == "gpt-6.1-sol"
     assert architect_template["recommended_effort"] == "high"
     architect = client.post(f"/api/projects/{p['id']}/agents", json={"name": "Ada", "template": "architect"}).json()
-    for kind in ("graphic-designer", "coder"):
+    for kind in ("graphic-designer", "coder", "community-manager"):
         response = client.post(f"/api/projects/{p['id']}/agents", json={"name": kind, "template": kind, "planner_id": architect["id"] if kind == "coder" else None})
         assert response.status_code == 201
         agent = response.json()
@@ -272,6 +272,34 @@ def test_specialist_catalog_creation_and_scope(client, app):
     designer = next(a for a in client.get("/api/state").json()["agents"] if a["kind"] == "graphic-designer")
     with pytest.raises(PermissionError):
         app.state.service.tool(designer, "create_specialist_agent", {"name": "No", "template": "architect"})
+
+
+def test_community_manager_mcp_creation_and_drafts_without_social_access(client, app):
+    p = project(client)
+    service, store = app.state.service, app.state.store
+    hapic = store.one("SELECT * FROM agents WHERE project_id=? AND kind='hapic'", (p["id"],))
+    headers = {"Authorization": "Bearer " + store.token(hapic["id"], "mcp"), "Accept": "application/json, text/event-stream"}
+    args = {"name": "Alma", "template": "community-manager"}
+    # Exercise the real MCP transport without Docker or paid model calls.
+    with patch.object(service, "provision"):
+        result = client.post("/mcp/", headers=headers, json={"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "create_specialist_agent", "arguments": args}})
+    assert result.status_code == 200 and not result.json()["result"].get("isError", False)
+    manager = store.one("SELECT * FROM agents WHERE project_id=? AND name='Alma'", (p["id"],))
+    assert manager["kind"] == "community-manager" and manager["container_id"] is None
+    repeated = service.tool(hapic, "create_specialist_agent", args)
+    assert repeated["already_exists"] and repeated["id"] == manager["id"]
+    config = yaml.safe_load((store.agent_path(manager) / "hermes/config.yaml").read_text(encoding="utf-8"))
+    assert set(config["mcp_servers"]["hapic"]["tools"]["include"]) == {"project_list_files", "project_read_file", "project_write_file"}
+    draft = "id,fecha,canal,estado\n1,2026-11-06,instagram,borrador\n"
+    saved = service.tool(manager, "project_write_file", {"path": "calendario-editorial.csv", "content": draft})
+    assert saved["saved"]
+    restarted = Service(Store(store.root), TestRuntime())
+    assert restarted.tool(restarted.agent(manager["id"]), "project_read_file", {"path": "calendario-editorial.csv"})["content"] == draft
+    for tool in ("publish_social_post", "reply_social_comment", "get_social_metrics", "generate_project_image", "create_specialist_agent"):
+        with pytest.raises(PermissionError):
+            service.tool(manager, tool, {})
+    assert any(a["id"] == manager["id"] for a in service.tool(hapic, "list_project_agents", {})["agents"])
+    assert store.all("SELECT * FROM messages WHERE agent_id=?", (manager["id"],)) == []
 
 
 def test_coder_requires_current_plan_and_keeps_workspaces_separate(client, app):

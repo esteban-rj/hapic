@@ -52,7 +52,7 @@ export type Agent = {
   name: string;
   organization_id: string;
   project_id: string;
-  kind: "ux" | "hapic" | "graphic-designer" | "architect" | "coder";
+  kind: "ux" | "hapic" | "graphic-designer" | "architect" | "coder" | "community-manager";
   planner_id: string | null;
   model: string;
   effort: string;
@@ -97,7 +97,7 @@ export type FileNode = {
 };
 
 export const agentRoles: Record<Agent["kind"], string> = {
-  hapic: "Orquestador", ux: "Especialista UX", "graphic-designer": "Diseñador gráfico", architect: "Arquitecto / Planner", coder: "Coder",
+  hapic: "Orquestador", ux: "Especialista UX", "graphic-designer": "Diseñador gráfico", architect: "Arquitecto / Planner", coder: "Coder", "community-manager": "Community Manager",
 };
 export function imageUrl(projectId: string, path: string, download = false) {
   return `/api/projects/${projectId}/image?path=${encodeURIComponent(path)}${download ? "&download=true" : ""}`;

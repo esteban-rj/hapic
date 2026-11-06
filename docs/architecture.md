@@ -31,7 +31,7 @@ FastAPI sirve el build de Vite en producción. En desarrollo, Vite reenvía `/ap
 
 ## Modelo de datos
 
-Una organización agrupa proyectos. Cada proyecto tiene un orquestador Hapic y especialistas UX, diseño gráfico, arquitectura/planning o código. La tabla `memberships` relaciona al operador local con las organizaciones y se comprueba al acceder a proyectos o agentes.
+Una organización agrupa proyectos. Cada proyecto tiene un orquestador Hapic y especialistas UX, diseño gráfico, arquitectura/planning, código o community management. La tabla `memberships` relaciona al operador local con las organizaciones y se comprueba al acceder a proyectos o agentes. Community Manager trabaja con archivos propios; las conexiones a Instagram y YouTube son una [propuesta de desarrollo](community-manager.md), sin conectores activos.
 
 `platform.db` contiene organizaciones, pertenencias, proyectos, agentes, mensajes visibles, imágenes, actividad, ajustes y sesiones locales. `agents.planner_id` vincula un coder al arquitecto. El estado de Hermes vive en otro SQLite dentro de su propio perfil. La inicialización crea tablas e índices y añade `planner_id` a instalaciones previas sin borrar datos; no incluye un framework general de migraciones.
 

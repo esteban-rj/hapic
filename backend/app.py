@@ -66,7 +66,7 @@ def create_app(data_dir: Path | None = None, runtime=None):
 
     @mcp.tool()
     def list_agent_templates(ctx: Context) -> dict:
-        """Lista plantillas de UX, diseño gráfico, arquitectura/planning y coder con sus recomendaciones."""
+        """Lista plantillas de UX, diseño gráfico, arquitectura/planning, coder y community manager con sus recomendaciones."""
         return service.tool(scope(ctx), "list_agent_templates", {})
 
     @mcp.tool()
@@ -76,7 +76,7 @@ def create_app(data_dir: Path | None = None, runtime=None):
 
     @mcp.tool()
     def create_specialist_agent(name: str, template: str, ctx: Context, planner_id: str | None = None) -> dict:
-        """Crea un especialista con nombre indicado por el usuario. template: ux, graphic-designer, architect o coder. Un coder requiere planner_id de un architect del mismo proyecto."""
+        """Crea un especialista con nombre indicado por el usuario. template: ux, graphic-designer, architect, coder o community-manager. Un coder requiere planner_id de un architect del mismo proyecto."""
         return service.tool(scope(ctx), "create_specialist_agent", {"name": name, "template": template, "planner_id": planner_id})
 
     @mcp.tool()

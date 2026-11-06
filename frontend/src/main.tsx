@@ -781,7 +781,7 @@ function App() {
                             <Sparkles size={20} />
                             <h3>Un equipo para tu proyecto</h3>
                             <p>
-                              UX, diseño gráfico, arquitectura y código. El arquitecto publica el plan; el coder lo implementa.
+                              UX, diseño gráfico, arquitectura, código y community management. El community manager prepara contenido para Instagram y YouTube.
                             </p>
                           </div>
                         )}

@@ -3,7 +3,7 @@ import json
 
 from .storage import ROOT
 
-SPECIALISTS = ("ux", "graphic-designer", "architect", "coder")
+SPECIALISTS = ("ux", "graphic-designer", "architect", "coder", "community-manager")
 FILE_TOOLS = ["project_list_files", "project_read_file", "project_write_file"]
 
 
@@ -22,5 +22,5 @@ def tools_for(kind):
         return ["get_ux_template", "create_ux_agent", "list_agent_templates", "list_project_agents", "create_specialist_agent"]
     if kind not in SPECIALISTS:
         return []
-    extra = {"ux": ["generate_project_image"], "graphic-designer": ["generate_project_image"], "architect": ["publish_architecture_plan"], "coder": ["get_architecture_plan"]}
+    extra = {"ux": ["generate_project_image"], "graphic-designer": ["generate_project_image"], "architect": ["publish_architecture_plan"], "coder": ["get_architecture_plan"], "community-manager": []}
     return FILE_TOOLS + extra[kind]
