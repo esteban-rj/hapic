@@ -2,16 +2,23 @@
 
 MVP local en español para organizar proyectos y trabajar con agentes Hermes persistentes. Interfaz React/Vite, control de gestión FastAPI, metadatos SQLite y un contenedor oficial Hermes por agente.
 
-Los cinco bocetos previos están conservados en [docs/mockups](docs/mockups). La aplicación inicia vacía; los ejemplos de esos bocetos no se convierten en datos ni en estados de runtime.
+La [galería del dashboard](docs/dashboard.md) muestra capturas de la interfaz actual con datos de demostración. Los cinco bocetos previos están conservados en [docs/mockups](docs/mockups). La aplicación inicia vacía; los ejemplos de la documentación no se convierten en datos ni en estados de runtime.
 
 ## Documentación
 
+- [Dashboard en imágenes](docs/dashboard.md): resumen, archivos, plantillas y herramientas.
 - [Arquitectura](docs/architecture.md): componentes, datos, provisión y límites de acceso.
 - [API y MCP](docs/api.md): rutas, sesión local, herramientas y errores.
 - [Operación](docs/operations.md): arranque, credenciales, persistencia, copias y diagnóstico.
 - [YouTube](docs/youtube.md): conexión OAuth, consultas reales y asignación a cualquier agente.
 - [Community Manager e integración social](docs/community-manager.md): perfil disponible y evolución de otras funciones sociales.
 - [Changelog](CHANGELOG.md): versiones y cambios pendientes de publicación.
+
+## Capturas del dashboard
+
+[![Dashboard de Hapic con dos proyectos y sus agentes pendientes de iniciar](docs/screenshots/dashboard-resumen.jpg)](docs/dashboard.md)
+
+Captura con datos de demostración. Consulta la [galería completa](docs/dashboard.md) para explorar los archivos de un agente, las plantillas y la asignación de herramientas.
 
 ## Ejecutar localmente en Windows
 
