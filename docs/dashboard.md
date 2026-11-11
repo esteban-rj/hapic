@@ -1,24 +1,30 @@
-# Dashboard de Hapic
+# Hapic · Tu siguiente idea ya tiene equipo
 
-Capturas de la interfaz de este repositorio, tomadas el 10 de noviembre de 2026 en una ventana compacta del navegador. El diseño se adapta al ancho disponible.
+Un espacio para organizar tus proyectos y trabajar con especialistas de IA que conservan su memoria, sus archivos y un propósito definido.
 
-La organización **Estudio Aurora · Demo**, sus dos proyectos y los archivos visibles son ejemplos creados en una instancia con almacenamiento independiente. Los agentes conservan su estado real **Pendiente de iniciar** y YouTube aparece pendiente de configuración y conexión.
+[Abrir el recorrido visual →](presentacion.html)
 
-## Resumen
+## Todos tus proyectos. Una sola perspectiva.
 
-La vista inicial reúne los proyectos de la organización, el número de especialistas, las plantillas disponibles y la tabla de agentes con su modelo y estado registrado.
+Dale un lugar a cada idea. Desde el resumen puedes explorar tus proyectos, encontrar a sus agentes y consultar el modelo y el estado de cada uno. Cuando vuelves al trabajo, el contexto sigue organizado por proyecto.
 
-![Resumen de Hapic con proyectos, especialistas y estados de los agentes](screenshots/dashboard-resumen.jpg)
+![Hapic: todos tus proyectos, una sola perspectiva](screenshots/hapic-proyectos.jpg)
 
-## Archivos de un agente
+[Ver la captura original completa del resumen](screenshots/dashboard-resumen.jpg)
 
-El espacio del Community Manager permite explorar los archivos del proyecto, abrir un calendario editorial de ejemplo y consultar el estado de su runtime. El archivo mostrado se preparó para esta demostración.
+## Un especialista para cada reto.
 
-![Explorador de archivos y vista previa del calendario editorial de Sofía, Community Manager](screenshots/dashboard-archivos.jpg)
+Construye tu equipo a partir de perfiles preparados. Cada plantilla define una forma de trabajo, preguntas iniciales y entregables para empezar con una dirección clara.
 
-## Plantillas de especialistas
+| Lo que quieres construir | Tu especialista |
+| --- | --- |
+| Una experiencia clara y accesible | UX |
+| Piezas visuales e imágenes | Diseñador gráfico |
+| Una arquitectura y un plan de implementación | Arquitecto / Planner |
+| Código y pruebas siguiendo ese plan | Coder |
+| Estrategia, calendarios y contenido para tu comunidad | Community Manager |
 
-El catálogo presenta las capacidades, preguntas iniciales, entregables y forma de trabajo de UX, diseño gráfico, arquitectura, código y community management.
+![Hapic: un especialista para cada reto](screenshots/hapic-especialistas.jpg)
 
 <details>
 <summary>Ver la captura completa del catálogo de plantillas</summary>
@@ -27,10 +33,30 @@ El catálogo presenta las capacidades, preguntas iniciales, entregables y forma 
 
 </details>
 
-## Herramientas
+## El trabajo toma forma en archivos.
 
-Las conexiones pertenecen al proyecto seleccionado. La sección de herramientas muestra la configuración de YouTube y permite habilitarla por agente. En este ejemplo, Community Manager la tiene preseleccionada y queda pendiente de asignar un canal autorizado.
+Briefs, planes, código, imágenes y calendarios tienen un espacio propio. Explora los archivos del proyecto y abre los entregables desde la misma interfaz. En esta pantalla, el Community Manager tiene un calendario editorial de ejemplo listo para revisar.
 
-![Configuración de YouTube y asignaciones de la herramienta por agente](screenshots/dashboard-herramientas.jpg)
+![Hapic: el trabajo toma forma en archivos](screenshots/hapic-entregables.jpg)
 
-[Volver al README](../README.md) · [Configuración de YouTube](youtube.md) · [Arquitectura](architecture.md)
+[Ver la captura original completa del explorador](screenshots/dashboard-archivos.jpg)
+
+## Tu canal. Más contexto para tus agentes.
+
+Conecta un canal autorizado de YouTube y elige qué agentes pueden consultar sus vídeos, comentarios y métricas. La herramienta pertenece al proyecto y puede integrarse en cualquiera de sus perfiles; Community Manager la incluye preseleccionada.
+
+![Hapic: tu canal aporta contexto a los agentes que elijas](screenshots/hapic-herramientas.jpg)
+
+[Ver la captura original completa de herramientas](screenshots/dashboard-herramientas.jpg)
+
+## Prepara tu primer equipo.
+
+Crea una organización, abre un proyecto y prepara los especialistas que necesitas. [Consulta cómo empezar con Hapic](../README.md#recorrido).
+
+### Sobre estas capturas
+
+Interfaz real de este repositorio, capturada el 10 de noviembre de 2026 en una ventana compacta del navegador. La organización **Estudio Aurora · Demo**, sus proyectos y los archivos visibles son ejemplos creados en almacenamiento independiente. Los agentes aparecen **Pendientes de iniciar** y YouTube está pendiente de configuración y conexión.
+
+YouTube es de solo lectura; la publicación y la delegación automática entre agentes siguen pendientes. El Coder entrega código y pruebas en archivos. La conversación requiere configurar OpenAI e iniciar el runtime Docker del agente.
+
+[Recorrido visual](presentacion.html) · [README](../README.md) · [Configuración de YouTube](youtube.md) · [Arquitectura](architecture.md)

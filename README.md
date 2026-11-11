@@ -1,12 +1,15 @@
 # Hapic
 
-MVP local en español para organizar proyectos y trabajar con agentes Hermes persistentes. Interfaz React/Vite, control de gestión FastAPI, metadatos SQLite y un contenedor oficial Hermes por agente.
+**Tu equipo, ampliado.** Organiza tus proyectos y reúne especialistas de IA con memoria, archivos y herramientas propias. UX, diseño, arquitectura, código y contenido, desde un mismo lugar.
 
-La [galería del dashboard](docs/dashboard.md) muestra capturas de la interfaz actual con datos de demostración. Los cinco bocetos previos están conservados en [docs/mockups](docs/mockups). La aplicación inicia vacía; los ejemplos de la documentación no se convierten en datos ni en estados de runtime.
+Explora el [recorrido visual de Hapic](docs/presentacion.html) o la [galería del dashboard](docs/dashboard.md). Las capturas utilizan datos de demostración; cada instalación empieza con su propio espacio vacío.
+
+Hapic es un MVP local en español basado en agentes Hermes persistentes, con interfaz React/Vite, backend FastAPI y metadatos SQLite. Los cinco bocetos iniciales se conservan en [docs/mockups](docs/mockups).
 
 ## Documentación
 
-- [Dashboard en imágenes](docs/dashboard.md): resumen, archivos, plantillas y herramientas.
+- [Recorrido visual](docs/presentacion.html): descubre Hapic a través de sus pantallas.
+- [Hapic en imágenes](docs/dashboard.md): proyectos, especialistas, archivos y herramientas.
 - [Arquitectura](docs/architecture.md): componentes, datos, provisión y límites de acceso.
 - [API y MCP](docs/api.md): rutas, sesión local, herramientas y errores.
 - [Operación](docs/operations.md): arranque, credenciales, persistencia, copias y diagnóstico.
@@ -14,11 +17,16 @@ La [galería del dashboard](docs/dashboard.md) muestra capturas de la interfaz a
 - [Community Manager e integración social](docs/community-manager.md): perfil disponible y evolución de otras funciones sociales.
 - [Changelog](CHANGELOG.md): versiones y cambios pendientes de publicación.
 
-## Capturas del dashboard
+## Tu siguiente idea ya tiene equipo
 
-[![Dashboard de Hapic con dos proyectos y sus agentes pendientes de iniciar](docs/screenshots/dashboard-resumen.jpg)](docs/dashboard.md)
+[![Hapic: todos tus proyectos, una sola perspectiva](docs/screenshots/hapic-proyectos.jpg)](docs/dashboard.md)
 
-Captura con datos de demostración. Consulta la [galería completa](docs/dashboard.md) para explorar los archivos de un agente, las plantillas y la asignación de herramientas.
+- **Dale un lugar a cada proyecto.** Reúne su contexto y consulta el estado de tu equipo.
+- **Elige al especialista adecuado.** Parte de cinco perfiles con instrucciones y entregables definidos.
+- **Conserva el resultado.** Revisa los archivos y mantén la memoria de cada agente entre sesiones.
+- **Acerca tus herramientas al equipo.** Asigna YouTube de solo lectura a los agentes que elijas, con un canal autorizado.
+
+[Descubre las pantallas de Hapic →](docs/dashboard.md)
 
 ## Ejecutar localmente en Windows
 
