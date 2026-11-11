@@ -2,13 +2,13 @@
 
 **Tu equipo, ampliado.** Organiza tus proyectos y reúne especialistas de IA con memoria, archivos y herramientas propias. UX, diseño, arquitectura, código y contenido, desde un mismo lugar.
 
-Explora el [recorrido visual de Hapic](docs/presentacion.html) o la [galería del dashboard](docs/dashboard.md). Las capturas utilizan datos de demostración; cada instalación empieza con su propio espacio vacío.
+Explora el [recorrido visual de Hapic](https://esteban-rj.github.io/hapic/) o la [galería del dashboard](docs/dashboard.md). Las capturas utilizan datos de demostración; cada instalación empieza con su propio espacio vacío.
 
 Hapic es un MVP local en español basado en agentes Hermes persistentes, con interfaz React/Vite, backend FastAPI y metadatos SQLite. Los cinco bocetos iniciales se conservan en [docs/mockups](docs/mockups).
 
 ## Documentación
 
-- [Recorrido visual](docs/presentacion.html): descubre Hapic a través de sus pantallas.
+- [Recorrido visual](https://esteban-rj.github.io/hapic/): descubre Hapic a través de sus pantallas.
 - [Hapic en imágenes](docs/dashboard.md): proyectos, especialistas, archivos y herramientas.
 - [Arquitectura](docs/architecture.md): componentes, datos, provisión y límites de acceso.
 - [API y MCP](docs/api.md): rutas, sesión local, herramientas y errores.
@@ -22,9 +22,12 @@ Hapic es un MVP local en español basado en agentes Hermes persistentes, con int
 [![Hapic: todos tus proyectos, una sola perspectiva](docs/screenshots/hapic-proyectos.jpg)](docs/dashboard.md)
 
 - **Dale un lugar a cada proyecto.** Reúne su contexto y consulta el estado de tu equipo.
+- **Organiza cada nivel de tu espacio.** Organizaciones, proyectos, agentes y sus carpetas y archivos.
 - **Elige al especialista adecuado.** Parte de cinco perfiles con instrucciones y entregables definidos.
 - **Conserva el resultado.** Revisa los archivos y mantén la memoria de cada agente entre sesiones.
 - **Acerca tus herramientas al equipo.** Asigna YouTube de solo lectura a los agentes que elijas, con un canal autorizado.
+
+La evolución prevista incluye agentes creados desde cero con rol e instrucciones propios, y nuevas conexiones con HeyGen, ElevenLabs y otros servicios.
 
 [Descubre las pantallas de Hapic →](docs/dashboard.md)
 

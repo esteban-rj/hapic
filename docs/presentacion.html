@@ -32,6 +32,11 @@
       .scene-lead { max-width: 410px; margin: 23px 0 25px; color: var(--muted); font-size: 16px; line-height: 1.7; }
       .benefits { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0 0 30px; list-style: none; }
       .benefits li { padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; font-size: 11px; line-height: 1.3; }
+      .capability { margin: 0 0 24px; padding: 10px 0 10px 13px; border-left: 2px solid #8ba78d; color: var(--muted); font-size: 12px; line-height: 1.6; }
+      .capability strong { display: block; margin-bottom: 3px; color: var(--ink); font-size: 12px; }
+      .connection-list { padding: 0; margin: 0 0 24px; list-style: none; }
+      .connection-list li { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+      .connection-list small { color: var(--muted); font-size: 11px; }
       .full-image { display: inline-flex; align-items: center; gap: 14px; padding: 0 0 5px; color: var(--ink); border: 0; border-bottom: 1px solid var(--ink); background: transparent; font-size: 12px; font-weight: 550; }
       .full-image span { font-size: 16px; }
       .screen-area { position: relative; min-width: 0; margin: 0; padding: 25px; background: #e5eadd; border-radius: 18px; }
@@ -43,7 +48,15 @@
       .screen-window.files img { transform: translateY(-21%); }
       .screen-window.templates img { transform: translateY(-4.5%); }
       .screen-note { margin: 13px 0 0; color: #556650; font-size: 10px; line-height: 1.5; text-align: center; }
-      .tour-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+      .structure { min-height: 465px; padding: 20px 16px; background: #fafafa; border: 1px solid #cbd2c7; border-radius: 10px; }
+      .structure-label { margin: 0 0 20px; color: var(--muted); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; }
+      .folder-tree, .folder-tree ul { padding: 0; margin: 0; list-style: none; }
+      .folder-tree ul { padding-left: 16px; margin: 13px 0 0 5px; border-left: 1px solid var(--line); }
+      .folder-tree li { margin-top: 14px; overflow-wrap: anywhere; }
+      .folder-tree strong { display: block; font-size: 12px; line-height: 1.5; font-weight: 600; }
+      .folder-tree small { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+      .folder-tree code { display: block; margin-top: 7px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+      .tour-nav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
       .tour-nav button { display: flex; align-items: flex-start; gap: 14px; min-width: 0; padding: 22px 12px; border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--muted); text-align: left; }
       .tour-nav button:last-child { border-right: 0; }
       .tour-nav button[aria-pressed="true"] { background: var(--mint); color: var(--ink); }
@@ -71,6 +84,7 @@
         .scene-number { margin-bottom: 16px; font-size: 9px; }
         .screen-area { padding: 16px; border-radius: 13px; }
         .screen-window { height: 390px; }
+        .structure { min-height: 390px; padding: 16px 12px; }
         .benefits { gap: 6px; margin-bottom: 24px; }
         .benefits li { padding: 6px 8px; font-size: 10px; }
         .tour-nav button { gap: 8px; padding: 17px 9px; }
@@ -89,20 +103,38 @@
         .screen-area { padding: 20px; }
         .screen-window { height: 360px; }
         .tour-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .tour-nav button:nth-child(2) { border-right: 0; }
-        .tour-nav button:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+        .tour-nav button:nth-child(even) { border-right: 0; }
+        .tour-nav button:nth-child(-n+4) { border-bottom: 1px solid var(--line); }
+        .tour-nav button:last-child { grid-column: 1 / -1; }
         .closing { align-items: flex-start; flex-direction: column; gap: 16px; }
         .step-copy strong { font-size: 12px; }
         .docs-link { font-size: 11px; }
       }
-      @media (prefers-reduced-motion: no-preference) { .tour-nav button { transition: background .16s ease, color .16s ease; } }
+      @keyframes copy-enter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes screen-enter { from { opacity: 0; transform: translateY(16px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+      @keyframes item-enter { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+      @media (prefers-reduced-motion: no-preference) {
+        .scene:not([hidden]) .scene-copy { animation: copy-enter .42s ease-out both; }
+        .scene:not([hidden]) .screen-area { animation: screen-enter .52s ease-out both; }
+        .scene:not([hidden]) .folder-tree li { animation: item-enter .38s ease-out both; animation-delay: .12s; }
+        .scene:not([hidden]) .folder-tree ul li { animation-delay: .22s; }
+        .scene:not([hidden]) .folder-tree ul ul li { animation-delay: .32s; }
+        .scene:not([hidden]) .folder-tree ul ul ul li { animation-delay: .42s; }
+        .scene:not([hidden]) .connection-list li { animation: item-enter .38s ease-out both; }
+        .scene:not([hidden]) .connection-list li:nth-child(2) { animation-delay: .1s; }
+        .scene:not([hidden]) .connection-list li:nth-child(3) { animation-delay: .2s; }
+        .tour-nav button { transition: background .16s ease, color .16s ease; }
+        .full-image span { display: inline-block; transition: transform .18s ease; }
+        .full-image:hover span { transform: translate(2px, -2px); }
+        dialog[open] { animation: screen-enter .2s ease-out; }
+      }
     </style>
   </head>
   <body>
     <div class="shell">
       <header class="masthead">
         <a class="brand" href="#producto" aria-label="Hapic, inicio"><span class="brand-mark" aria-hidden="true">H</span> Hapic <span class="brand-caption">Tu equipo, ampliado.</span></a>
-        <a class="docs-link" href="dashboard.md">Galería y documentación ↗</a>
+        <a class="docs-link" href="https://github.com/esteban-rj/hapic/blob/main/docs/dashboard.md">Galería y documentación ↗</a>
       </header>
       <main id="producto">
         <div class="intro"><p class="eyebrow">Una idea. El equipo para hacerla avanzar.</p><span class="local-label">En tu entorno</span></div>
@@ -121,12 +153,47 @@
           </figure>
         </section>
 
+        <section class="scene" id="scene-estructura" aria-labelledby="title-estructura" hidden>
+          <div class="scene-copy">
+            <span class="scene-number">02 / UN LUGAR PARA CADA COSA</span>
+            <h2 id="title-estructura">Del proyecto<br />a cada archivo.</h2>
+            <p class="scene-lead">Agrupa tus proyectos por organización. Cada proyecto reúne a sus agentes, y cada agente conserva su perfil, memoria y carpetas de trabajo.</p>
+            <ul class="benefits"><li>Organizaciones</li><li>Proyectos</li><li>Agentes</li><li>Carpetas y archivos</li></ul>
+            <button type="button" class="full-image" data-image="archivos">Ver el explorador real <span aria-hidden="true">↗</span></button>
+          </div>
+          <figure class="screen-area">
+            <div class="structure">
+              <p class="structure-label">Esquema del espacio de trabajo</p>
+              <ul class="folder-tree">
+                <li><strong>Estudio Aurora</strong><small>Organización</small>
+                  <ul>
+                    <li><strong>Lanzamiento de marca</strong><small>Proyecto</small>
+                      <ul>
+                        <li><strong>Sofía · Community Manager</strong><small>Agente del proyecto</small>
+                          <ul>
+                            <li><strong>hermes/</strong><small>Perfil y memoria persistente</small></li>
+                            <li><strong>workspace/</strong><small>Carpetas y entregables</small><code>calendario/editorial.md</code></li>
+                          </ul>
+                        </li>
+                        <li><strong>Lucía · UX</strong><small>Su propio perfil y workspace</small></li>
+                      </ul>
+                    </li>
+                    <li><strong>Sitio web corporativo</strong><small>Otro proyecto, con su propio equipo</small></li>
+                  </ul>
+                </li>
+              </ul>
+            </div>
+            <figcaption class="screen-note">Estructura ilustrada con datos de demostración.</figcaption>
+          </figure>
+        </section>
+
         <section class="scene" id="scene-plantillas" aria-labelledby="title-plantillas" hidden>
           <div class="scene-copy">
-            <span class="scene-number">02 / TU EQUIPO DE ESPECIALISTAS</span>
-            <h2 id="title-plantillas">Un especialista<br />para cada reto.</h2>
+            <span class="scene-number">03 / TU EQUIPO DE ESPECIALISTAS</span>
+            <h2 id="title-plantillas">Tu equipo,<br />a tu medida.</h2>
             <p class="scene-lead">Empieza con perfiles preparados para diseñar, planificar, escribir código y trabajar tu contenido. Cada agente tiene su propia memoria y espacio de trabajo.</p>
             <ul class="benefits"><li>UX</li><li>Diseño gráfico</li><li>Arquitectura</li><li>Código</li><li>Community Manager</li></ul>
+            <p class="capability"><strong>Previsto · Agentes desde cero</strong>Define un rol, instrucciones y herramientas propios para crear un agente completamente personalizado, sin partir de una plantilla.</p>
             <button type="button" class="full-image" data-image="plantillas">Ver captura completa <span aria-hidden="true">↗</span></button>
           </div>
           <figure class="screen-area">
@@ -137,7 +204,7 @@
 
         <section class="scene" id="scene-archivos" aria-labelledby="title-archivos" hidden>
           <div class="scene-copy">
-            <span class="scene-number">03 / RESULTADOS QUE PERMANECEN</span>
+            <span class="scene-number">04 / RESULTADOS QUE PERMANECEN</span>
             <h2 id="title-archivos">El trabajo toma<br />forma en archivos.</h2>
             <p class="scene-lead">Organiza briefs, planes, código, imágenes y calendarios en el espacio de cada agente. Abre los entregables desde el mismo proyecto.</p>
             <ul class="benefits"><li>Archivos persistentes</li><li>Vista previa</li><li>Contexto por proyecto</li></ul>
@@ -151,26 +218,27 @@
 
         <section class="scene" id="scene-herramientas" aria-labelledby="title-herramientas" hidden>
           <div class="scene-copy">
-            <span class="scene-number">04 / HERRAMIENTAS PARA TU EQUIPO</span>
-            <h2 id="title-herramientas">Tu canal.<br />Más contexto<br />para tus agentes.</h2>
-            <p class="scene-lead">Autoriza un canal de YouTube y elige qué agentes pueden consultar sus vídeos, comentarios y métricas para trabajar con datos de tu contenido.</p>
-            <ul class="benefits"><li>YouTube de solo lectura</li><li>Canal autorizado</li><li>Asignación por agente</li></ul>
+            <span class="scene-number">05 / HERRAMIENTAS PARA TU EQUIPO</span>
+            <h2 id="title-herramientas">Tus herramientas.<br />Más posibilidades.</h2>
+            <p class="scene-lead">La visión de Hapic es que cualquier agente incorpore conexiones según su trabajo. YouTube es el primer conector; el catálogo podrá crecer con HeyGen, ElevenLabs y otros servicios.</p>
+            <ul class="connection-list"><li><strong>YouTube</strong><small>Disponible · Solo lectura</small></li><li><strong>HeyGen</strong><small>Integración prevista</small></li><li><strong>ElevenLabs</strong><small>Integración prevista</small></li></ul>
             <button type="button" class="full-image" data-image="herramientas">Ver captura completa <span aria-hidden="true">↗</span></button>
           </div>
           <figure class="screen-area">
             <div class="screen-frame"><div class="screen-header"><span class="screen-title">Hapic / Herramientas</span><span>Captura real</span></div><div class="screen-window"><img src="screenshots/dashboard-herramientas.jpg" alt="Herramienta de YouTube y controles para asignarla a los agentes del proyecto." width="672" height="2059" /></div></div>
-            <figcaption class="screen-note">Una conexión del proyecto, disponible para los agentes que elijas.</figcaption>
+            <figcaption class="screen-note">Captura del conector actual de YouTube. Las otras integraciones están previstas.</figcaption>
           </figure>
         </section>
 
         <nav class="tour-nav" aria-label="Recorrido por Hapic">
           <button type="button" data-scene="resumen" aria-controls="scene-resumen" aria-pressed="true"><span class="step-number">01</span><span class="step-copy"><strong>Tus proyectos</strong><small>Todo en perspectiva</small></span></button>
-          <button type="button" data-scene="plantillas" aria-controls="scene-plantillas" aria-pressed="false"><span class="step-number">02</span><span class="step-copy"><strong>Tu equipo</strong><small>Un perfil para cada reto</small></span></button>
-          <button type="button" data-scene="archivos" aria-controls="scene-archivos" aria-pressed="false"><span class="step-number">03</span><span class="step-copy"><strong>Tus archivos</strong><small>Resultados que permanecen</small></span></button>
-          <button type="button" data-scene="herramientas" aria-controls="scene-herramientas" aria-pressed="false"><span class="step-number">04</span><span class="step-copy"><strong>Tus herramientas</strong><small>Más contexto para trabajar</small></span></button>
+          <button type="button" data-scene="estructura" aria-controls="scene-estructura" aria-pressed="false"><span class="step-number">02</span><span class="step-copy"><strong>Tu estructura</strong><small>Del proyecto a cada archivo</small></span></button>
+          <button type="button" data-scene="plantillas" aria-controls="scene-plantillas" aria-pressed="false"><span class="step-number">03</span><span class="step-copy"><strong>Tu equipo</strong><small>Especialistas a tu medida</small></span></button>
+          <button type="button" data-scene="archivos" aria-controls="scene-archivos" aria-pressed="false"><span class="step-number">04</span><span class="step-copy"><strong>Tus archivos</strong><small>Resultados que permanecen</small></span></button>
+          <button type="button" data-scene="herramientas" aria-controls="scene-herramientas" aria-pressed="false"><span class="step-number">05</span><span class="step-copy"><strong>Tus herramientas</strong><small>Conexiones que crecerán</small></span></button>
         </nav>
         <p id="tour-status" class="sr-only" aria-live="polite">Mostrando Tus proyectos.</p>
-        <div class="closing"><p><strong>Tu siguiente idea ya tiene equipo.</strong><br />Crea un proyecto, prepara tus especialistas y empieza a trabajar con Hapic.</p><a class="start-link" href="../README.md#recorrido">Cómo empezar con Hapic ↗</a></div>
+        <div class="closing"><p><strong>Tu siguiente idea ya tiene equipo.</strong><br />Crea un proyecto, prepara tus especialistas y empieza a trabajar con Hapic.</p><a class="start-link" href="https://github.com/esteban-rj/hapic#recorrido">Cómo empezar con Hapic ↗</a></div>
       </main>
       <footer><p class="footnote">Interfaz real de Hapic con datos de demostración. Los agentes de estas capturas están pendientes de iniciar y el canal de YouTube está pendiente de conexión. La conversación y la generación de imágenes requieren una API key de OpenAI y los servicios correspondientes; el runtime de los agentes utiliza Docker.</p></footer>
     </div>

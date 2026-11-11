@@ -2,7 +2,7 @@
 
 Un espacio para organizar tus proyectos y trabajar con especialistas de IA que conservan su memoria, sus archivos y un propósito definido.
 
-[Abrir el recorrido visual →](presentacion.html)
+[Abrir el recorrido visual →](https://esteban-rj.github.io/hapic/)
 
 ## Todos tus proyectos. Una sola perspectiva.
 
@@ -12,9 +12,28 @@ Dale un lugar a cada idea. Desde el resumen puedes explorar tus proyectos, encon
 
 [Ver la captura original completa del resumen](screenshots/dashboard-resumen.jpg)
 
+## Del proyecto a cada archivo.
+
+La organización agrupa los proyectos. Cada proyecto reúne a sus agentes y un workspace compartido; cada agente dispone de un perfil Hermes con memoria y de su propio workspace para carpetas y archivos.
+
+```text
+.hapic/
+  organizations/<organizacion-id>/
+    projects/<proyecto-id>/
+      workspace/                     # planes compartidos del proyecto
+      agents/<agente-id>/
+        hermes/                      # perfil, configuración y memoria
+        workspace/                   # carpetas y archivos del agente
+          calendario/editorial.md
+```
+
+![Hapic: estructura de organizaciones, proyectos, agentes y carpetas](screenshots/hapic-estructura.jpg)
+
 ## Un especialista para cada reto.
 
 Construye tu equipo a partir de perfiles preparados. Cada plantilla define una forma de trabajo, preguntas iniciales y entregables para empezar con una dirección clara.
+
+**Previsto: agentes desde cero.** La evolución del producto contempla definir un rol, instrucciones y herramientas propios para crear un agente completamente personalizado, sin plantilla. La versión actual de este repositorio crea agentes desde las plantillas disponibles.
 
 | Lo que quieres construir | Tu especialista |
 | --- | --- |
@@ -41,9 +60,11 @@ Briefs, planes, código, imágenes y calendarios tienen un espacio propio. Explo
 
 [Ver la captura original completa del explorador](screenshots/dashboard-archivos.jpg)
 
-## Tu canal. Más contexto para tus agentes.
+## Tus herramientas. Más posibilidades.
 
 Conecta un canal autorizado de YouTube y elige qué agentes pueden consultar sus vídeos, comentarios y métricas. La herramienta pertenece al proyecto y puede integrarse en cualquiera de sus perfiles; Community Manager la incluye preseleccionada.
+
+El catálogo podrá incorporar **HeyGen**, **ElevenLabs** y otros servicios. Son integraciones previstas; el conector disponible actualmente es YouTube de solo lectura.
 
 ![Hapic: tu canal aporta contexto a los agentes que elijas](screenshots/hapic-herramientas.jpg)
 
@@ -59,4 +80,4 @@ Interfaz real de este repositorio, capturada el 10 de noviembre de 2026 en una v
 
 YouTube es de solo lectura; la publicación y la delegación automática entre agentes siguen pendientes. El Coder entrega código y pruebas en archivos. La conversación requiere configurar OpenAI e iniciar el runtime Docker del agente.
 
-[Recorrido visual](presentacion.html) · [README](../README.md) · [Configuración de YouTube](youtube.md) · [Arquitectura](architecture.md)
+[Recorrido visual](https://esteban-rj.github.io/hapic/) · [README](../README.md) · [Configuración de YouTube](youtube.md) · [Arquitectura](architecture.md)
