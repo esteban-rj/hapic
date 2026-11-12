@@ -365,7 +365,6 @@ export function Chat({
             {agentRoles[agent.kind]}
           </span>
         </div>
-        <span className="tag">Hermes</span>
       </div>
       <div className="messages" aria-live="polite">
         {messages.length === 0 ? (
@@ -420,7 +419,7 @@ export function Chat({
             {m.role !== "user" ? <Mark small /> : null}
             <div className="message-body">
               <span className="message-label">
-                {m.role === "user" ? "Tú" : agent.name + (m.source === "artifact" ? " · Archivo guardado" : " · Hermes")}
+                {m.role === "user" ? "Tú" : agent.name}
               </span>
               <MessageContent message={m} agent={agent} />
             </div>
@@ -429,7 +428,7 @@ export function Chat({
         {busy ? (
           <div className="thinking">
             <LoaderCircle className="spin" size={16} />
-            Hermes está trabajando…
+            {agent.name} está trabajando…
           </div>
         ) : null}
         <div ref={bottom} />
