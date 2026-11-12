@@ -2,13 +2,13 @@
 
 **Tu equipo, ampliado.** Organiza tus proyectos y reúne especialistas de IA con memoria, archivos y herramientas propias. UX, diseño, arquitectura, código y contenido, desde un mismo lugar.
 
-Explora el [recorrido visual de Hapic](https://esteban-rj.github.io/hapic/) o la [galería del dashboard](docs/dashboard.md). Las capturas utilizan datos de demostración; cada instalación empieza con su propio espacio vacío.
+Explora la [demo animada e interactiva de Hapic](https://esteban-rj.github.io/hapic/) o la [galería del dashboard](docs/dashboard.md). La demo permite explorar proyectos, especialistas, archivos y herramientas con datos ilustrativos, pausa del recorrido y modo claro/oscuro. No ejecuta agentes ni conecta servicios. Las capturas muestran la interfaz real con datos de demostración; cada instalación empieza con su propio espacio vacío.
 
 Hapic es un MVP local en español basado en agentes Hermes persistentes, con interfaz React/Vite, backend FastAPI y metadatos SQLite. Los cinco bocetos iniciales se conservan en [docs/mockups](docs/mockups).
 
 ## Documentación
 
-- [Recorrido visual](https://esteban-rj.github.io/hapic/): descubre Hapic a través de sus pantallas.
+- [Demo interactiva](https://esteban-rj.github.io/hapic/): explora la plataforma animada en modo claro u oscuro.
 - [Hapic en imágenes](docs/dashboard.md): proyectos, especialistas, archivos y herramientas.
 - [Arquitectura](docs/architecture.md): componentes, datos, provisión y límites de acceso.
 - [API y MCP](docs/api.md): rutas, sesión local, herramientas y errores.
@@ -152,3 +152,7 @@ Las pruebas cubren persistencia, valores por defecto, CSRF/origen, pertenencia, 
 La creación conversacional se comprueba con dobles en los tests. No se ejecutó una prueba adicional de QA con dos llamadas facturables a OpenAI. Los diagnósticos locales se guardan en `artifacts/`, que está excluido de Git.
 
 Fuera de este MVP: login remoto multiusuario, roles empresariales completos, comunicación entre proyectos, WhatsApp, llamadas, Kubernetes y hosting externo.
+
+## Documentar nuevas características
+
+El skill del repositorio [hapic-feature-docs](.agents/skills/hapic-feature-docs/SKILL.md) guía la actualización conjunta de este README y GitHub Pages al incorporar capacidades nuevas. No se aplica a refactors o parches sin nuevas funcionalidades.
