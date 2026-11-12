@@ -9,6 +9,14 @@
     archivos: ['Resultados que permanecen', 'Sofía / workspace / calendario', [['editorial.md', 'Abrir un entregable de ejemplo ↗', '# Calendario editorial\nLunes · Presentación de marca\nMiércoles · Detrás de cámaras\nViernes · Preguntas de la comunidad'], ['brief.md', 'Contexto del proyecto ↗', '# Brief de ejemplo\nObjetivo: presentar la nueva marca.\nAudiencia: comunidad del estudio.\nTono: cercano y claro.']]],
     herramientas: ['Conecta tu contexto', 'Herramientas del proyecto', [['YouTube · Solo lectura', 'Vídeos, comentarios y métricas', 'Se configura OAuth en el servidor y el usuario autoriza su canal. Después puede asignarlo a los agentes del proyecto.'], ['HeyGen · ElevenLabs', 'Integraciones previstas', 'Estas conexiones todavía no están disponibles.']]]
   };
+  const english = {
+    resumen: ['Your workspace', 'Aurora Studio / Overview', [['Brand launch', 'Sofía · Community Manager / Lucía · UX', 'A project brings together context, specialists and their deliverables.'], ['Corporate website', 'Architecture / Code', 'Each team keeps its own workspace.']]],
+    estructura: ['Everything has a place', 'Aurora Studio / Brand launch', [['▾ Sofía · Community Manager', 'hermes/ · Profile and memory', 'hermes/\n  memories/MEMORY.md\nworkspace/\n  calendario/editorial.md'], ['▾ Lucía · UX', 'Independent profile and files', 'hermes/\n  memories/MEMORY.md\nworkspace/\n  brief.md']]],
+    plantillas: ['Prepare your team', 'Five profiles with methods and deliverables', [['UX · Graphic design', 'Briefs, flows and visual proposals', 'UX example: brief → flows → wireframes → accessibility review.'], ['Architect · Coder', 'From a shared plan to implementation', 'The architect publishes the plan and the coder checks its version before writing.'], ['Community Manager', 'Strategy and content', 'Prepare calendars, copy and scripts with dedicated context and files.']]],
+    archivos: ['Results that last', 'Sofía / workspace / calendario', [['editorial.md', 'Open a sample deliverable ↗', '# Editorial calendar\nMonday · Brand introduction\nWednesday · Behind the scenes\nFriday · Community questions'], ['brief.md', 'Project context ↗', '# Sample brief\nGoal: introduce the new brand.\nAudience: the studio community.\nTone: friendly and clear.']]],
+    herramientas: ['Connect your context', 'Project tools', [['YouTube · Read-only', 'Videos, comments and metrics', 'OAuth is configured on the server and the user authorizes their channel. They can then assign it to project agents.'], ['HeyGen · ElevenLabs', 'Planned integrations', 'These connections are not available yet.']]]
+  };
+  const isEnglish = () => document.documentElement.lang === 'en';
   let active = 'resumen';
   let playing = !reduced.matches;
   let timer;
@@ -19,7 +27,7 @@
   controls.className = 'demo-controls';
   controls.innerHTML = '<span>Explora las tarjetas y las secciones</span><button type="button" class="demo-control"></button>';
   const pause = controls.querySelector('button');
-  function updatePause() { pause.textContent = playing ? 'Pausar recorrido' : 'Reproducir recorrido'; }
+  function updatePause() { pause.textContent = isEnglish() ? (playing ? 'Pause tour' : 'Play tour') : (playing ? 'Pausar recorrido' : 'Reproducir recorrido'); }
   function schedule() {
     clearTimeout(timer);
     if (playing && !document.hidden) timer = setTimeout(() => {
@@ -33,7 +41,7 @@
     demo.after(controls);
     const body = demo.querySelector('.demo-content');
     body.replaceChildren();
-    const [title, subtitle, cards] = content[key];
+    const [title, subtitle, cards] = (isEnglish() ? english : content)[key];
     const heading = document.createElement('h3'); heading.textContent = title;
     const description = document.createElement('p'); description.textContent = subtitle;
     body.append(heading, description);
@@ -46,8 +54,15 @@
       card.addEventListener('click', () => { playing = false; updatePause(); schedule(); panel.hidden = !panel.hidden; card.setAttribute('aria-expanded', String(!panel.hidden)); });
       body.append(card, panel);
     });
-    const tag = document.createElement('span'); tag.className = 'demo-tag'; tag.textContent = 'Datos de ejemplo'; body.append(tag);
-    demo.querySelectorAll('[data-demo-step]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.demoStep === key)));
+    const tag = document.createElement('span'); tag.className = 'demo-tag'; tag.textContent = isEnglish() ? 'Sample data' : 'Datos de ejemplo'; body.append(tag);
+    demo.querySelectorAll('[data-demo-step]').forEach((button, index) => {
+      button.setAttribute('aria-pressed', String(button.dataset.demoStep === key));
+      button.textContent = isEnglish() ? ['Projects', 'Structure', 'Specialists', 'Files', 'Tools'][index] : labels[index];
+    });
+    demo.querySelector('.demo-top small').textContent = isEnglish() ? 'ILLUSTRATIVE DEMO · NO SERVICES' : 'DEMO ILUSTRATIVA · SIN SERVICIOS';
+    demo.querySelector('nav').setAttribute('aria-label', isEnglish() ? 'Platform demo' : 'Plataforma de demostración');
+    controls.querySelector('span').textContent = isEnglish() ? 'Explore the cards and sections' : 'Explora las tarjetas y las secciones';
+    updatePause();
     demo.style.setProperty('--progress', ((steps.indexOf(key) + 1) * 20) + '%');
     schedule();
   }
@@ -56,15 +71,13 @@
     button.addEventListener('click', () => { playing = false; updatePause(); document.querySelector('[data-scene="' + key + '"]').click(); });
     demo.querySelector('nav').append(button);
   });
-  // Keep original screenshots available through the full-image dialog.
-  document.querySelectorAll('.screen-area > .screen-frame, .screen-area > .structure').forEach(element => { element.hidden = true; });
-  document.querySelectorAll('.screen-note').forEach(note => { note.textContent = 'Demostración ilustrativa. Explora la plataforma o consulta la captura real.'; });
   pause.addEventListener('click', () => { playing = !playing; updatePause(); schedule(); });
   document.addEventListener('visibilitychange', schedule);
   reduced.addEventListener('change', () => { if (reduced.matches) { playing = false; updatePause(); schedule(); } });
   document.querySelectorAll('[data-scene]').forEach(button => button.addEventListener('click', event => {
     if (event.isTrusted) { playing = false; updatePause(); schedule(); }
   }));
+  document.addEventListener('hapic-language-change', () => select(active));
   window.hapicDemo = { select };
   updatePause(); select(active);
 })();

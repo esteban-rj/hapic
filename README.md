@@ -2,7 +2,7 @@
 
 **Tu equipo, ampliado.** Organiza tus proyectos y reúne especialistas de IA con memoria, archivos y herramientas propias. UX, diseño, arquitectura, código y contenido, desde un mismo lugar.
 
-Explora la [demo animada e interactiva de Hapic](https://esteban-rj.github.io/hapic/) o la [galería del dashboard](docs/dashboard.md). La demo permite explorar proyectos, especialistas, archivos y herramientas con datos ilustrativos, pausa del recorrido y modo claro/oscuro. No ejecuta agentes ni conecta servicios. Las capturas muestran la interfaz real con datos de demostración; cada instalación empieza con su propio espacio vacío.
+Explora la [demo animada e interactiva de Hapic](https://esteban-rj.github.io/hapic/) o la [galería del dashboard](docs/dashboard.md). La demo permite explorar proyectos, especialistas, archivos y herramientas con datos ilustrativos, pausa del recorrido, modo claro/oscuro y un botón con bandera para alternar entre español e inglés. La preferencia de idioma se conserva al recargar. No ejecuta agentes ni conecta servicios. Las capturas muestran la interfaz real con datos de demostración; cada instalación empieza con su propio espacio vacío.
 
 Hapic es un MVP local en español basado en agentes Hermes persistentes, con interfaz React/Vite, backend FastAPI y metadatos SQLite. Los cinco bocetos iniciales se conservan en [docs/mockups](docs/mockups).
 

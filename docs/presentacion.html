@@ -38,25 +38,8 @@
       .connection-list { padding: 0; margin: 0 0 24px; list-style: none; }
       .connection-list li { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
       .connection-list small { color: var(--muted); font-size: 11px; }
-      .full-image { display: inline-flex; align-items: center; gap: 14px; padding: 0 0 5px; color: var(--ink); border: 0; border-bottom: 1px solid var(--ink); background: transparent; font-size: 12px; font-weight: 550; }
-      .full-image span { font-size: 16px; }
       .screen-area { position: relative; min-width: 0; margin: 0; padding: 25px; background: #e5eadd; border-radius: 18px; }
-      .screen-frame { overflow: hidden; background: #fafafa; border: 1px solid #cbd2c7; border-radius: 10px; box-shadow: 0 18px 45px -25px #263e2e55; }
-      .screen-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 13px; background: #fff; border-bottom: 1px solid #e8ebe5; color: #5c655d; font-size: 10px; }
-      .screen-title { color: #273a2c; font-weight: 600; }
-      .screen-window { height: 465px; overflow: hidden; }
-      .screen-window img { display: block; width: 100%; height: auto; }
-      .screen-window.files img { transform: translateY(-21%); }
-      .screen-window.templates img { transform: translateY(-4.5%); }
       .screen-note { margin: 13px 0 0; color: #556650; font-size: 10px; line-height: 1.5; text-align: center; }
-      .structure { min-height: 465px; padding: 20px 16px; background: #fafafa; border: 1px solid #cbd2c7; border-radius: 10px; }
-      .structure-label { margin: 0 0 20px; color: var(--muted); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; }
-      .folder-tree, .folder-tree ul { padding: 0; margin: 0; list-style: none; }
-      .folder-tree ul { padding-left: 16px; margin: 13px 0 0 5px; border-left: 1px solid var(--line); }
-      .folder-tree li { margin-top: 14px; overflow-wrap: anywhere; }
-      .folder-tree strong { display: block; font-size: 12px; line-height: 1.5; font-weight: 600; }
-      .folder-tree small { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.5; }
-      .folder-tree code { display: block; margin-top: 7px; color: var(--muted); font-size: 10px; line-height: 1.5; }
       .tour-nav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
       .tour-nav button { display: flex; align-items: flex-start; gap: 14px; min-width: 0; padding: 22px 12px; border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--muted); text-align: left; }
       .tour-nav button:last-child { border-right: 0; }
@@ -70,12 +53,6 @@
       .start-link { flex-shrink: 0; padding: 13px 17px; border-radius: 5px; color: #fff; background: var(--ink); font-size: 12px; text-decoration: none; }
       .footnote { margin: 0; padding: 17px 0 25px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; line-height: 1.7; }
       .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
-      dialog { width: min(960px, calc(100% - 24px)); max-height: calc(100dvh - 24px); padding: 0; color: var(--ink); background: #fafafa; border: 1px solid var(--line); border-radius: 12px; }
-      dialog::backdrop { background: #17231ebf; }
-      .dialog-top { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 16px; border-bottom: 1px solid var(--line); background: #fafafa; }
-      .dialog-top h2 { font-size: 16px; line-height: 1.4; letter-spacing: -.3px; }
-      .dialog-close { padding: 8px 12px; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 5px; font-size: 12px; }
-      .dialog-image { display: block; width: min(100%, 672px); height: auto; margin: 0 auto; }
       @media (max-width: 1000px) {
         .shell { padding: 0 26px; }
         .masthead { min-height: 74px; }
@@ -84,8 +61,6 @@
         .scene-lead { margin: 18px 0 20px; font-size: 14px; }
         .scene-number { margin-bottom: 16px; font-size: 9px; }
         .screen-area { padding: 16px; border-radius: 13px; }
-        .screen-window { height: 390px; }
-        .structure { min-height: 390px; padding: 16px 12px; }
         .benefits { gap: 6px; margin-bottom: 24px; }
         .benefits li { padding: 6px 8px; font-size: 10px; }
         .tour-nav button { gap: 8px; padding: 17px 9px; }
@@ -102,7 +77,6 @@
         h1, h2 { font-size: clamp(36px, 9.8vw, 52px); letter-spacing: -2px; }
         .scene-lead { max-width: 460px; }
         .screen-area { padding: 20px; }
-        .screen-window { height: 360px; }
         .tour-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .tour-nav button:nth-child(even) { border-right: 0; }
         .tour-nav button:nth-child(-n+4) { border-bottom: 1px solid var(--line); }
@@ -117,17 +91,10 @@
       @media (prefers-reduced-motion: no-preference) {
         .scene:not([hidden]) .scene-copy { animation: copy-enter .42s ease-out both; }
         .scene:not([hidden]) .screen-area { animation: screen-enter .52s ease-out both; }
-        .scene:not([hidden]) .folder-tree li { animation: item-enter .38s ease-out both; animation-delay: .12s; }
-        .scene:not([hidden]) .folder-tree ul li { animation-delay: .22s; }
-        .scene:not([hidden]) .folder-tree ul ul li { animation-delay: .32s; }
-        .scene:not([hidden]) .folder-tree ul ul ul li { animation-delay: .42s; }
         .scene:not([hidden]) .connection-list li { animation: item-enter .38s ease-out both; }
         .scene:not([hidden]) .connection-list li:nth-child(2) { animation-delay: .1s; }
         .scene:not([hidden]) .connection-list li:nth-child(3) { animation-delay: .2s; }
         .tour-nav button { transition: background .16s ease, color .16s ease; }
-        .full-image span { display: inline-block; transition: transform .18s ease; }
-        .full-image:hover span { transform: translate(2px, -2px); }
-        dialog[open] { animation: screen-enter .2s ease-out; }
       }
     </style>
     <link rel="stylesheet" href="demo.css" />
@@ -135,149 +102,101 @@
   <body>
     <div class="shell">
       <header class="masthead">
-        <a class="brand" href="#producto" aria-label="Hapic, inicio"><span class="brand-mark" aria-hidden="true">H</span> Hapic <span class="brand-caption">Tu equipo, ampliado.</span></a>
-        <div class="header-actions"><button type="button" id="theme-toggle" aria-pressed="false">Modo oscuro</button><a class="docs-link" href="https://github.com/esteban-rj/hapic/blob/main/docs/dashboard.md">Galería y documentación ↗</a></div>
+        <a class="brand" href="#producto" aria-label="Hapic, inicio"><span class="brand-mark" aria-hidden="true">H</span> Hapic <span class="brand-caption" data-en="Your team, expanded.">Tu equipo, ampliado.</span></a>
+        <div class="header-actions"><button type="button" id="language-toggle" aria-label="Switch to English" lang="en">🇬🇧 EN</button><button type="button" id="theme-toggle" aria-pressed="false">Modo oscuro</button><a class="docs-link" href="https://github.com/esteban-rj/hapic/blob/main/docs/dashboard.md" data-en="Gallery and documentation ↗">Galería y documentación ↗</a></div>
       </header>
       <main id="producto">
-        <div class="intro"><p class="eyebrow">Una idea. El equipo para hacerla avanzar.</p><span class="local-label">En tu entorno</span></div>
+        <div class="intro"><p class="eyebrow" data-en="One idea. The team to move it forward.">Una idea. El equipo para hacerla avanzar.</p><span class="local-label" data-en="In your environment">En tu entorno</span></div>
 
         <section class="scene" id="scene-resumen" aria-labelledby="title-resumen">
           <div class="scene-copy">
-            <span class="scene-number">01 / VISIÓN GENERAL</span>
-            <h1 id="title-resumen">Todos tus proyectos.<br />Una sola perspectiva.</h1>
-            <p class="scene-lead">Dale un lugar a cada idea. Reúne su contexto y sus especialistas, y retoma el trabajo con todo a mano.</p>
-            <ul class="benefits"><li>Proyectos con contexto</li><li>Agentes persistentes</li><li>Estado visible</li></ul>
-            <button type="button" class="full-image" data-image="resumen">Ver captura completa <span aria-hidden="true">↗</span></button>
+            <span class="scene-number" data-en="01 / OVERVIEW">01 / VISIÓN GENERAL</span>
+            <h1 id="title-resumen" data-en="All your projects.&lt;br /&gt;One perspective.">Todos tus proyectos.<br />Una sola perspectiva.</h1>
+            <p class="scene-lead" data-en="Give every idea a home. Bring its context and specialists together, and pick up your work with everything at hand.">Dale un lugar a cada idea. Reúne su contexto y sus especialistas, y retoma el trabajo con todo a mano.</p>
+            <ul class="benefits"><li data-en="Projects with context">Proyectos con contexto</li><li data-en="Persistent agents">Agentes persistentes</li><li data-en="Visible status">Estado visible</li></ul>
           </div>
           <figure class="screen-area">
-            <div class="screen-frame"><div class="screen-header"><span class="screen-title">Hapic / Resumen</span><span>Captura real</span></div><div class="screen-window"><img src="screenshots/dashboard-resumen.jpg" alt="Resumen de Hapic con dos proyectos y su equipo de agentes." width="672" height="1375" /></div></div>
-            <figcaption class="screen-note">Tus proyectos y tu equipo, en una misma vista.</figcaption>
+            <figcaption class="screen-note" data-en="Illustrative demo with sample data.">Demostración ilustrativa con datos de ejemplo.</figcaption>
           </figure>
         </section>
 
         <section class="scene" id="scene-estructura" aria-labelledby="title-estructura" hidden>
           <div class="scene-copy">
-            <span class="scene-number">02 / UN LUGAR PARA CADA COSA</span>
-            <h2 id="title-estructura">Del proyecto<br />a cada archivo.</h2>
-            <p class="scene-lead">Agrupa tus proyectos por organización. Cada proyecto reúne a sus agentes, y cada agente conserva su perfil, memoria y carpetas de trabajo.</p>
-            <ul class="benefits"><li>Organizaciones</li><li>Proyectos</li><li>Agentes</li><li>Carpetas y archivos</li></ul>
-            <button type="button" class="full-image" data-image="archivos">Ver el explorador real <span aria-hidden="true">↗</span></button>
+            <span class="scene-number" data-en="02 / A PLACE FOR EVERYTHING">02 / UN LUGAR PARA CADA COSA</span>
+            <h2 id="title-estructura" data-en="From the project&lt;br /&gt;to every file.">Del proyecto<br />a cada archivo.</h2>
+            <p class="scene-lead" data-en="Group projects by organization. Each project brings its agents together, and each agent keeps its own profile, memory and workspace folders.">Agrupa tus proyectos por organización. Cada proyecto reúne a sus agentes, y cada agente conserva su perfil, memoria y carpetas de trabajo.</p>
+            <ul class="benefits"><li data-en="Organizations">Organizaciones</li><li data-en="Projects">Proyectos</li><li data-en="Agents">Agentes</li><li data-en="Folders and files">Carpetas y archivos</li></ul>
           </div>
           <figure class="screen-area">
-            <div class="structure">
-              <p class="structure-label">Esquema del espacio de trabajo</p>
-              <ul class="folder-tree">
-                <li><strong>Estudio Aurora</strong><small>Organización</small>
-                  <ul>
-                    <li><strong>Lanzamiento de marca</strong><small>Proyecto</small>
-                      <ul>
-                        <li><strong>Sofía · Community Manager</strong><small>Agente del proyecto</small>
-                          <ul>
-                            <li><strong>hermes/</strong><small>Perfil y memoria persistente</small></li>
-                            <li><strong>workspace/</strong><small>Carpetas y entregables</small><code>calendario/editorial.md</code></li>
-                          </ul>
-                        </li>
-                        <li><strong>Lucía · UX</strong><small>Su propio perfil y workspace</small></li>
-                      </ul>
-                    </li>
-                    <li><strong>Sitio web corporativo</strong><small>Otro proyecto, con su propio equipo</small></li>
-                  </ul>
-                </li>
-              </ul>
-            </div>
-            <figcaption class="screen-note">Estructura ilustrada con datos de demostración.</figcaption>
+            <figcaption class="screen-note" data-en="Illustrative demo with sample data.">Demostración ilustrativa con datos de ejemplo.</figcaption>
           </figure>
         </section>
 
         <section class="scene" id="scene-plantillas" aria-labelledby="title-plantillas" hidden>
           <div class="scene-copy">
-            <span class="scene-number">03 / TU EQUIPO DE ESPECIALISTAS</span>
-            <h2 id="title-plantillas">Tu equipo,<br />a tu medida.</h2>
-            <p class="scene-lead">Empieza con perfiles preparados para diseñar, planificar, escribir código y trabajar tu contenido. Cada agente tiene su propia memoria y espacio de trabajo.</p>
-            <ul class="benefits"><li>UX</li><li>Diseño gráfico</li><li>Arquitectura</li><li>Código</li><li>Community Manager</li></ul>
-            <p class="capability"><strong>Previsto · Agentes desde cero</strong>Define un rol, instrucciones y herramientas propios para crear un agente completamente personalizado, sin partir de una plantilla.</p>
-            <button type="button" class="full-image" data-image="plantillas">Ver captura completa <span aria-hidden="true">↗</span></button>
+            <span class="scene-number" data-en="03 / YOUR TEAM OF SPECIALISTS">03 / TU EQUIPO DE ESPECIALISTAS</span>
+            <h2 id="title-plantillas" data-en="Your team,&lt;br /&gt;your way.">Tu equipo,<br />a tu medida.</h2>
+            <p class="scene-lead" data-en="Start with profiles ready to design, plan, write code and develop your content. Each agent has its own memory and workspace.">Empieza con perfiles preparados para diseñar, planificar, escribir código y trabajar tu contenido. Cada agente tiene su propia memoria y espacio de trabajo.</p>
+            <ul class="benefits"><li>UX</li><li data-en="Graphic design">Diseño gráfico</li><li data-en="Architecture">Arquitectura</li><li data-en="Code">Código</li><li>Community Manager</li></ul>
+            <p class="capability"><strong data-en="Planned · Agents from scratch">Previsto · Agentes desde cero</strong><span data-en="Define a custom role, instructions and tools to create a personalized agent without starting from a template.">Define un rol, instrucciones y herramientas propios para crear un agente completamente personalizado, sin partir de una plantilla.</span></p>
           </div>
           <figure class="screen-area">
-            <div class="screen-frame"><div class="screen-header"><span class="screen-title">Hapic / Plantillas</span><span>Captura real</span></div><div class="screen-window templates"><img src="screenshots/dashboard-plantillas.jpg" alt="Catálogo de plantillas con capacidades, método y entregables de cada especialista." width="672" height="4700" /></div></div>
-            <figcaption class="screen-note">Cinco perfiles para dar el siguiente paso.</figcaption>
+            <figcaption class="screen-note" data-en="Illustrative demo with sample data.">Demostración ilustrativa con datos de ejemplo.</figcaption>
           </figure>
         </section>
 
         <section class="scene" id="scene-archivos" aria-labelledby="title-archivos" hidden>
           <div class="scene-copy">
-            <span class="scene-number">04 / RESULTADOS QUE PERMANECEN</span>
-            <h2 id="title-archivos">El trabajo toma<br />forma en archivos.</h2>
-            <p class="scene-lead">Organiza briefs, planes, código, imágenes y calendarios en el espacio de cada agente. Abre los entregables desde el mismo proyecto.</p>
-            <ul class="benefits"><li>Archivos persistentes</li><li>Vista previa</li><li>Contexto por proyecto</li></ul>
-            <button type="button" class="full-image" data-image="archivos">Ver captura completa <span aria-hidden="true">↗</span></button>
+            <span class="scene-number" data-en="04 / RESULTS THAT LAST">04 / RESULTADOS QUE PERMANECEN</span>
+            <h2 id="title-archivos" data-en="Work takes&lt;br /&gt;shape in files.">El trabajo toma<br />forma en archivos.</h2>
+            <p class="scene-lead" data-en="Organize briefs, plans, code, images and calendars in each agent’s workspace. Open deliverables from the same project.">Organiza briefs, planes, código, imágenes y calendarios en el espacio de cada agente. Abre los entregables desde el mismo proyecto.</p>
+            <ul class="benefits"><li data-en="Persistent files">Archivos persistentes</li><li data-en="Preview">Vista previa</li><li data-en="Project context">Contexto por proyecto</li></ul>
           </div>
           <figure class="screen-area">
-            <div class="screen-frame"><div class="screen-header"><span class="screen-title">Hapic / Archivos</span><span>Captura real</span></div><div class="screen-window files"><img src="screenshots/dashboard-archivos.jpg" alt="Explorador de archivos con la vista previa de un calendario editorial de ejemplo." width="672" height="1288" /></div></div>
-            <figcaption class="screen-note">Del contexto a un entregable que puedes revisar.</figcaption>
+            <figcaption class="screen-note" data-en="Illustrative demo with sample data.">Demostración ilustrativa con datos de ejemplo.</figcaption>
           </figure>
         </section>
 
         <section class="scene" id="scene-herramientas" aria-labelledby="title-herramientas" hidden>
           <div class="scene-copy">
-            <span class="scene-number">05 / HERRAMIENTAS PARA TU EQUIPO</span>
-            <h2 id="title-herramientas">Tus herramientas.<br />Más posibilidades.</h2>
-            <p class="scene-lead">La visión de Hapic es que cualquier agente incorpore conexiones según su trabajo. YouTube es el primer conector; el catálogo podrá crecer con HeyGen, ElevenLabs y otros servicios.</p>
-            <ul class="connection-list"><li><strong>YouTube</strong><small>Disponible · Solo lectura</small></li><li><strong>HeyGen</strong><small>Integración prevista</small></li><li><strong>ElevenLabs</strong><small>Integración prevista</small></li></ul>
-            <button type="button" class="full-image" data-image="herramientas">Ver captura completa <span aria-hidden="true">↗</span></button>
+            <span class="scene-number" data-en="05 / TOOLS FOR YOUR TEAM">05 / HERRAMIENTAS PARA TU EQUIPO</span>
+            <h2 id="title-herramientas" data-en="Your tools.&lt;br /&gt;More possibilities.">Tus herramientas.<br />Más posibilidades.</h2>
+            <p class="scene-lead" data-en="Hapic’s vision is for any agent to use connections suited to its work. YouTube is the first connector; the catalog may grow with HeyGen, ElevenLabs and other services.">La visión de Hapic es que cualquier agente incorpore conexiones según su trabajo. YouTube es el primer conector; el catálogo podrá crecer con HeyGen, ElevenLabs y otros servicios.</p>
+            <ul class="connection-list"><li><strong>YouTube</strong><small data-en="Available · Read-only">Disponible · Solo lectura</small></li><li><strong>HeyGen</strong><small data-en="Planned integration">Integración prevista</small></li><li><strong>ElevenLabs</strong><small data-en="Planned integration">Integración prevista</small></li></ul>
           </div>
           <figure class="screen-area">
-            <div class="screen-frame"><div class="screen-header"><span class="screen-title">Hapic / Herramientas</span><span>Captura real</span></div><div class="screen-window"><img src="screenshots/dashboard-herramientas.jpg" alt="Herramienta de YouTube y controles para asignarla a los agentes del proyecto." width="672" height="2059" /></div></div>
-            <figcaption class="screen-note">Captura del conector actual de YouTube. Las otras integraciones están previstas.</figcaption>
+            <figcaption class="screen-note" data-en="Illustrative demo with sample data.">Demostración ilustrativa con datos de ejemplo.</figcaption>
           </figure>
         </section>
 
         <nav class="tour-nav" aria-label="Recorrido por Hapic">
-          <button type="button" data-scene="resumen" aria-controls="scene-resumen" aria-pressed="true"><span class="step-number">01</span><span class="step-copy"><strong>Tus proyectos</strong><small>Todo en perspectiva</small></span></button>
-          <button type="button" data-scene="estructura" aria-controls="scene-estructura" aria-pressed="false"><span class="step-number">02</span><span class="step-copy"><strong>Tu estructura</strong><small>Del proyecto a cada archivo</small></span></button>
-          <button type="button" data-scene="plantillas" aria-controls="scene-plantillas" aria-pressed="false"><span class="step-number">03</span><span class="step-copy"><strong>Tu equipo</strong><small>Especialistas a tu medida</small></span></button>
-          <button type="button" data-scene="archivos" aria-controls="scene-archivos" aria-pressed="false"><span class="step-number">04</span><span class="step-copy"><strong>Tus archivos</strong><small>Resultados que permanecen</small></span></button>
-          <button type="button" data-scene="herramientas" aria-controls="scene-herramientas" aria-pressed="false"><span class="step-number">05</span><span class="step-copy"><strong>Tus herramientas</strong><small>Conexiones que crecerán</small></span></button>
+          <button type="button" data-scene="resumen" aria-controls="scene-resumen" aria-pressed="true"><span class="step-number">01</span><span class="step-copy"><strong data-en="Your projects">Tus proyectos</strong><small data-en="Everything in perspective">Todo en perspectiva</small></span></button>
+          <button type="button" data-scene="estructura" aria-controls="scene-estructura" aria-pressed="false"><span class="step-number">02</span><span class="step-copy"><strong data-en="Your structure">Tu estructura</strong><small data-en="From project to file">Del proyecto a cada archivo</small></span></button>
+          <button type="button" data-scene="plantillas" aria-controls="scene-plantillas" aria-pressed="false"><span class="step-number">03</span><span class="step-copy"><strong data-en="Your team">Tu equipo</strong><small data-en="Specialists for your needs">Especialistas a tu medida</small></span></button>
+          <button type="button" data-scene="archivos" aria-controls="scene-archivos" aria-pressed="false"><span class="step-number">04</span><span class="step-copy"><strong data-en="Your files">Tus archivos</strong><small data-en="Results that last">Resultados que permanecen</small></span></button>
+          <button type="button" data-scene="herramientas" aria-controls="scene-herramientas" aria-pressed="false"><span class="step-number">05</span><span class="step-copy"><strong data-en="Your tools">Tus herramientas</strong><small data-en="More connections to come">Conexiones que crecerán</small></span></button>
         </nav>
         <p id="tour-status" class="sr-only" aria-live="polite">Mostrando Tus proyectos.</p>
-        <div class="closing"><p><strong>Tu siguiente idea ya tiene equipo.</strong><br />Crea un proyecto, prepara tus especialistas y empieza a trabajar con Hapic.</p><a class="start-link" href="https://github.com/esteban-rj/hapic#recorrido">Cómo empezar con Hapic ↗</a></div>
+        <div class="closing"><p><strong data-en="Your next idea already has a team.">Tu siguiente idea ya tiene equipo.</strong><br /><span data-en="Create a project, prepare your specialists and start working with Hapic.">Crea un proyecto, prepara tus especialistas y empieza a trabajar con Hapic.</span></p><a class="start-link" href="https://github.com/esteban-rj/hapic#recorrido" data-en="Get started with Hapic ↗">Cómo empezar con Hapic ↗</a></div>
       </main>
-      <footer><p class="footnote">Demo interactiva ilustrativa de Hapic, sin conexión a servicios ni generación de IA. Las capturas completas muestran la interfaz real con datos de demostración. Los agentes de estas capturas están pendientes de iniciar y el canal de YouTube está pendiente de conexión. La conversación y la generación de imágenes requieren una API key de OpenAI y los servicios correspondientes; el runtime de los agentes utiliza Docker.</p></footer>
+      <footer><p class="footnote" data-en="Illustrative interactive Hapic demo, with no service connections or AI generation. Conversations and image generation require an OpenAI API key and the corresponding services; the agent runtime uses Docker.">Demo interactiva ilustrativa de Hapic, sin conexión a servicios ni generación de IA. La conversación y la generación de imágenes requieren una API key de OpenAI y los servicios correspondientes; el runtime de los agentes utiliza Docker.</p></footer>
     </div>
-    <dialog id="image-dialog" aria-labelledby="image-dialog-title">
-      <div class="dialog-top"><h2 id="image-dialog-title">Captura de Hapic</h2><button type="button" class="dialog-close" autofocus>Cerrar ✕</button></div>
-      <img class="dialog-image" alt="" />
-    </dialog>
+    <script src="language.js"></script>
     <script src="demo.js"></script>
     <script>
       (() => {
         const buttons = Array.from(document.querySelectorAll('[data-scene]'));
         const scenes = Array.from(document.querySelectorAll('.scene'));
         const status = document.getElementById('tour-status');
-        const dialog = document.getElementById('image-dialog');
-        const dialogTitle = document.getElementById('image-dialog-title');
-        const dialogImage = dialog.querySelector('img');
         buttons.forEach((button) => {
           button.addEventListener('click', () => {
             const selected = button.dataset.scene;
             scenes.forEach((scene) => { scene.hidden = scene.id !== 'scene-' + selected; });
             buttons.forEach((item) => { item.setAttribute('aria-pressed', String(item === button)); });
             window.hapicDemo?.select(selected);
-            status.textContent = 'Mostrando ' + button.querySelector('strong').textContent + '.';
+            status.textContent = (document.documentElement.lang === 'en' ? 'Showing ' : 'Mostrando ') + button.querySelector('strong').textContent + '.';
           });
         });
-        document.querySelectorAll('[data-image]').forEach((button) => {
-          button.addEventListener('click', () => {
-            const scene = document.getElementById('scene-' + button.dataset.image);
-            const image = scene.querySelector('.screen-window img');
-            dialogTitle.textContent = scene.querySelector('.screen-title').textContent;
-            dialogImage.src = image.getAttribute('src');
-            dialogImage.alt = image.alt;
-            dialog.showModal();
-          });
-        });
-        dialog.querySelector('.dialog-close').addEventListener('click', () => dialog.close());
-        dialog.addEventListener('click', (event) => { if (event.target === dialog) { const bounds = dialog.getBoundingClientRect(); if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) dialog.close(); } });
       })();
     </script>
   </body>

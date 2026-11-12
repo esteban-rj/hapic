@@ -7,10 +7,11 @@
     const button = document.getElementById('theme-toggle');
     if (button) {
       button.setAttribute('aria-pressed', String(theme === 'dark'));
-      button.textContent = theme === 'dark' ? 'Modo claro' : 'Modo oscuro';
+      button.textContent = document.documentElement.lang === 'en' ? (theme === 'dark' ? 'Light mode' : 'Dark mode') : (theme === 'dark' ? 'Modo claro' : 'Modo oscuro');
     }
   }
   function sync() { const preference = saved(); apply(preference === 'dark' || (preference !== 'light' && media.matches) ? 'dark' : 'light'); }
+  document.addEventListener('hapic-language-change', () => apply(document.documentElement.dataset.theme));
   sync();
   media.addEventListener('change', sync);
   window.addEventListener('storage', sync);
