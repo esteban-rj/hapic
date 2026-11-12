@@ -16,6 +16,8 @@ import {
   LayoutGrid,
   Layers,
   LoaderCircle,
+  Moon,
+  Sun,
   Plus,
   RefreshCw,
   Settings,
@@ -69,6 +71,30 @@ const nav = [
   { name: "Configuración" as Page, icon: Settings },
 ];
 function App() {
+  const [theme, setTheme] = useState(() => document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const sync = () => {
+      let saved;
+      try { saved = localStorage.getItem("hapic-theme"); } catch {}
+      setTheme(saved === "dark" || (saved !== "light" && media.matches) ? "dark" : "light");
+    };
+    media.addEventListener("change", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      media.removeEventListener("change", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#141416" : "#fafafa");
+  }, [theme]);
+  function toggleTheme() {
+    const next = theme === "dark" ? "light" : "dark";
+    try { localStorage.setItem("hapic-theme", next); } catch {}
+    setTheme(next);
+  }
   const [state, setState] = useState<State>();
   const [caps, setCaps] = useState<Capabilities>();
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -367,6 +393,16 @@ function App() {
           <i />
           Local
         </span>
+        <button
+          type="button"
+          className="icon-button theme-toggle"
+          onClick={toggleTheme}
+          aria-label="Modo nocturno"
+          aria-pressed={theme === "dark"}
+          title={theme === "dark" ? "Activar modo claro" : "Activar modo nocturno"}
+        >
+          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
         <div className="avatar" title="Operador local">
           Tú
         </div>
