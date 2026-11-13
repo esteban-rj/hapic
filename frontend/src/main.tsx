@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   ArrowRight,
@@ -109,8 +109,11 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState("");
   const [projectName, setProjectName] = useState("");
-  const [tree, setTree] = useState<FileNode>();
-  const [file, setFile] = useState<{
+  const [fileTree, setTree] = useState<{ agentId: string; node: FileNode }>();
+  const [treeVersion, setTreeVersion] = useState(0);
+  const previewRequest = useRef(0);
+  const [fileView, setFile] = useState<{
+    agentId: string;
     path: string;
     content: string;
     size: number;
@@ -182,27 +185,18 @@ function App() {
         (!projectId || a.project_id === projectId),
     ) || [];
   const agent = agents.find((a) => a.id === agentId);
+  const tree = fileTree?.agentId === agent?.id ? fileTree?.node : undefined;
+  const file = fileView?.agentId === agent?.id ? fileView : undefined;
+  useEffect(() => {
+    previewRequest.current += 1;
+    setFile(undefined);
+  }, [agent?.id]);
   useEffect(() => {
     if (projectId && !projects.some((p) => p.id === projectId)) {
       setProjectId("");
       setAgentId("");
     }
   }, [orgId, state?.projects, projectId]);
-  useEffect(() => {
-    if (!projectId) {
-      setTree(undefined);
-      return;
-    }
-    let active = true;
-    api<FileNode>("/projects/" + projectId + "/tree")
-      .then((t) => {
-        if (active) setTree(t);
-      })
-      .catch((e) => setError(e.message));
-    return () => {
-      active = false;
-    };
-  }, [projectId, state?.agents.length]);
   useEffect(() => {
     if (!agentId) {
       setRuntime(undefined);
@@ -234,12 +228,13 @@ function App() {
     };
   }, [agentId, refresh]);
   useEffect(() => {
-    if (tab !== "Archivos" || !projectId) return;
+    if (tab !== "Archivos" || !agent) return;
+    const selectedAgent = agent;
     let active = true;
     const load = () =>
-      api<FileNode>("/projects/" + projectId + "/tree")
+      api<FileNode>("/projects/" + selectedAgent.project_id + "/tree?agent_id=" + selectedAgent.id)
         .then((t) => {
-          if (active) setTree(t);
+          if (active) setTree({ agentId: selectedAgent.id, node: t });
         })
         .catch((e) => {
           if (active) setError(e.message);
@@ -250,7 +245,7 @@ function App() {
       active = false;
       clearInterval(timer);
     };
-  }, [tab, projectId]);
+  }, [tab, agent?.id, treeVersion]);
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(""), 5000);
@@ -311,17 +306,21 @@ function App() {
     });
   }
   async function readFile(n: FileNode) {
+    if (!agent) return;
+    const selectedAgent = agent;
+    const request = ++previewRequest.current;
     if (n.media_type === "image") {
-      setFile({ path: n.path, content: "", size: n.size || 0, media_type: "image" });
+      setFile({ agentId: selectedAgent.id, path: n.path, content: "", size: n.size || 0, media_type: "image" });
       return;
     }
-    await action(async () =>
-      setFile(
-        await api(
-          "/projects/" + projectId + "/file?path=" + encodeURIComponent(n.path),
-        ),
-      ),
-    );
+    await action(async () => {
+      const document = await api<{ path: string; content: string; size: number }>(
+        "/projects/" + selectedAgent.project_id + "/file?path=" + encodeURIComponent(n.path) + "&agent_id=" + selectedAgent.id,
+      );
+      if (previewRequest.current === request) {
+        setFile({ ...document, agentId: selectedAgent.id });
+      }
+    });
   }
   const start = () =>
     action(async () => {
@@ -855,15 +854,11 @@ function App() {
                       <section className="card file-tree">
                         <div className="card-title">
                           <Folder size={16} />
-                          Estructura real
+                          Archivos de {agent.name}
                           <button
                             className="icon-button"
                             aria-label="Actualizar árbol"
-                            onClick={() =>
-                              api<FileNode>("/projects/" + projectId + "/tree")
-                                .then(setTree)
-                                .catch((e) => setError(e.message))
-                            }
+                            onClick={() => setTreeVersion((version) => version + 1)}
                           >
                             <RefreshCw size={14} />
                           </button>
@@ -871,8 +866,9 @@ function App() {
                         <div className="tree-scroll">
                           {tree ? (
                             <Tree
+                              key={agent.id}
                               node={tree}
-                              label={project?.name}
+                              label={agent.name}
                               select={readFile}
                               selected={file?.path}
                             />
@@ -881,8 +877,8 @@ function App() {
                           )}
                         </div>
                         <p className="tree-note">
-                          Los secretos y logs están excluidos. Los archivos de
-                          estado binarios no admiten vista previa.
+                          Solo archivos propios o accesibles para este agente.
+                          Los secretos y logs están excluidos.
                         </p>
                       </section>
                       <section className="card file-preview">
@@ -896,7 +892,7 @@ function App() {
                           ) : null}
                         </div>
                         {file ? (
-                          file.media_type === "image" ? <ImagePreview key={file.path} src={imageUrl(projectId, file.path)} alt={file.path.split("/").pop() || "Imagen del proyecto"} download={imageUrl(projectId, file.path, true)} /> : <pre>{file.content}</pre>
+                          file.media_type === "image" ? <ImagePreview key={file.path} src={imageUrl(agent.project_id, file.path, false, agent.id)} alt={file.path.split("/").pop() || "Imagen del agente"} download={imageUrl(agent.project_id, file.path, true, agent.id)} /> : <pre>{file.content}</pre>
                         ) : (
                           <Empty
                             icon={<FileText size={28} />}

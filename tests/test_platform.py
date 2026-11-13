@@ -150,6 +150,91 @@ def test_mcp_scope_and_real_file_tools(client, app):
     assert result.json()["result"]["isError"]
 
 
+def test_agent_files_only_include_own_mounts_and_authorized_plans(client, app):
+    p = project(client)
+    service, store = app.state.service, app.state.store
+    hapic = store.one("SELECT * FROM agents WHERE project_id=? AND kind='hapic'", (p["id"],))
+    architect = service.create_agent(p["id"], "Ada", "architect")
+    other_architect = service.create_agent(p["id"], "Otro planner", "architect")
+    coder = service.create_agent(p["id"], "Lin", "coder", architect["id"])
+    agents = [hapic, architect, other_architect, coder]
+    agents += [service.create_agent(p["id"], kind, kind) for kind in ("ux", "graphic-designer", "community-manager")]
+    for agent in agents:
+        path = store.agent_path(agent) / "workspace/nested/deliverable.md"
+        path.parent.mkdir()
+        path.write_text(agent["name"], encoding="utf-8")
+    (store.project_path(p) / "workspace/unshared.md").write_text("Not shared with agents")
+    plan = service.tool(architect, "publish_architecture_plan", {"content": "# Ada's plan"})["path"]
+    other_plan = service.tool(other_architect, "publish_architecture_plan", {"content": "# Other plan"})["path"]
+
+    def file_paths(node):
+        if node["type"] == "file":
+            yield node["path"]
+        for child in node.get("children", []):
+            yield from file_paths(child)
+
+    for agent in agents:
+        scope = {"agent_id": agent["id"]}
+        response = client.get(f"/api/projects/{p['id']}/tree", params=scope)
+        assert response.status_code == 200
+        tree = response.json()
+        assert tree["name"] == agent["name"]
+        paths = set(file_paths(tree))
+        own = f"agents/{agent['id']}"
+        assert f"{own}/workspace/nested/deliverable.md" in paths
+        assert f"{own}/hermes/SOUL.md" in paths
+        assert f"{own}/hermes/memories/MEMORY.md" in paths
+        shared = {plan} if agent in (architect, coder) else {other_plan} if agent == other_architect else set()
+        assert {path for path in paths if not path.startswith(own + "/")} == shared
+        assert "project.json" not in paths
+        assert "workspace/unshared.md" not in paths
+        for path in [f"{own}/workspace/nested/deliverable.md", f"{own}/hermes/memories/MEMORY.md", *shared]:
+            assert client.get(f"/api/projects/{p['id']}/file", params={**scope, "path": path}).status_code == 200
+        for other in agents:
+            if other == agent:
+                continue
+            path = f"agents/{other['id']}/workspace/nested/deliverable.md"
+            assert client.get(f"/api/projects/{p['id']}/file", params={**scope, "path": path}).status_code == 403
+        for path in {plan, other_plan, "workspace/unshared.md", "project.json"} - shared:
+            assert client.get(f"/api/projects/{p['id']}/file", params={**scope, "path": path}).status_code == 403
+        for path in [f"{own}/hermes/config.yaml", f"{own}/workspace/../hermes/SOUL.md", f"{own}/workspace/.env"]:
+            assert client.get(f"/api/projects/{p['id']}/file", params={**scope, "path": path}).status_code == 400
+
+
+def test_agent_file_scope_rejects_wrong_project_and_missing_access(client, app):
+    p = project(client)
+    other_project = project(client)
+    service, store = app.state.service, app.state.store
+    architect = service.create_agent(p["id"], "Ada", "architect")
+    coder = service.create_agent(p["id"], "Lin", "coder", architect["id"])
+    tree = client.get(f"/api/projects/{p['id']}/tree", params={"agent_id": coder["id"]})
+    assert tree.status_code == 200 and "Plan compartido" not in tree.text
+    for suffix in ("tree", "file", "image"):
+        params = {"agent_id": coder["id"], "path": "workspace/missing.png"}
+        assert client.get(f"/api/projects/{other_project['id']}/{suffix}", params=params).status_code == 403
+        params["agent_id"] = "unknown"
+        assert client.get(f"/api/projects/{p['id']}/{suffix}", params=params).status_code == 404
+    store.execute("DELETE FROM memberships WHERE organization_id=?", (p["organization_id"],))
+    for suffix in ("tree", "file", "image"):
+        assert client.get(f"/api/projects/{p['id']}/{suffix}", params={"agent_id": coder["id"], "path": "workspace/missing.png"}).status_code == 404
+
+
+def test_agent_file_tree_and_preview_reject_symlinks(client, app):
+    p = project(client)
+    service, store = app.state.service, app.state.store
+    ux = service.create_agent(p["id"], "Nora")
+    other = service.create_agent(p["id"], "Otro")
+    target = store.agent_path(other) / "workspace/private.md"
+    target.write_text("Other agent's work")
+    link = store.agent_path(ux) / "workspace/linked.md"
+    try:
+        link.symlink_to(target)
+    except OSError:
+        pytest.skip("Host does not permit symlink creation")
+    assert "linked.md" not in client.get(f"/api/projects/{p['id']}/tree", params={"agent_id": ux["id"]}).text
+    assert client.get(f"/api/projects/{p['id']}/file", params={"agent_id": ux["id"], "path": f"agents/{ux['id']}/workspace/linked.md"}).status_code == 400
+
+
 def test_model_changes_apply_and_clean_template(client, app):
     p = project(client)
     store = app.state.store
@@ -358,6 +443,13 @@ def test_images_persist_chat_preview_download_and_restart(client, app):
             yield from descendants(child)
     image = next(n for n in descendants(tree) if n["path"] == attachment["path"])
     assert image["media_type"] == "image" and image["preview"]
+    scoped_url = attachment["url"] + "&agent_id=" + designer["id"]
+    assert client.get(scoped_url).content == PNG
+    assert client.get(scoped_url + "&download=true").headers["content-disposition"].startswith("attachment;")
+    scoped_tree = client.get(f"/api/projects/{p['id']}/tree", params={"agent_id": designer["id"]}).json()
+    assert next(n for n in descendants(scoped_tree) if n["path"] == attachment["path"])["preview"]
+    other = service.create_agent(p["id"], "Nora")
+    assert client.get(attachment["url"] + "&agent_id=" + other["id"]).status_code == 403
     restarted = Service(Store(app.state.store.root), TestRuntime())
     assert restarted.messages(designer["id"])[0]["attachments"][0] == attachment
     assert restarted.image_file(p["id"], attachment["path"])[0].read_bytes() == PNG
