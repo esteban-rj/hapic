@@ -10,8 +10,8 @@ export function LanguageSelector() {
       value={language}
       onChange={(event) => setLanguage(event.target.value === "en" ? "en" : "es")}
     >
-      <option value="es" lang="es">🇪🇸 Español</option>
-      <option value="en" lang="en">🇺🇸 English</option>
+      <option value="es" lang="es" aria-label="Español">🇪🇸</option>
+      <option value="en" lang="en" aria-label="English">🇺🇸</option>
     </select>
   );
 }
