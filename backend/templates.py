@@ -2,18 +2,33 @@
 import json
 
 from .storage import ROOT
+from .i18n import get_language
 
 SPECIALISTS = ("ux", "graphic-designer", "architect", "coder", "community-manager")
 FILE_TOOLS = ["project_list_files", "project_read_file", "project_write_file"]
 
 
-def template(kind, instructions=False):
+def template_root(kind, language=None):
+    if kind not in (*SPECIALISTS, "hapic"):
+        raise ValueError("Plantilla no válida.")
+    root = ROOT / "templates" / kind
+    return root / "locales/en" if (language or get_language()) == "en" else root
+
+
+def soul(kind, language=None):
+    return (template_root(kind, language) / "SOUL.md").read_text(encoding="utf-8")
+
+
+def template(kind, instructions=False, language=None):
     if kind not in SPECIALISTS:
         raise ValueError("Plantilla no válida.")
     root = ROOT / "templates" / kind
     result = {**json.loads((root / "template.json").read_text(encoding="utf-8")), "kind": kind, "tools": tools_for(kind)}
+    localized = template_root(kind, language)
+    if localized != root:
+        result.update(json.loads((localized / "template.json").read_text(encoding="utf-8")))
     if instructions:
-        result["instructions"] = (root / "SOUL.md").read_text(encoding="utf-8")
+        result["instructions"] = soul(kind, language)
     return result
 
 

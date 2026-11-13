@@ -15,7 +15,9 @@ from fastapi.staticfiles import StaticFiles
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel, Field
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from .i18n import get_language, language_context, localize_fields, tr
 from .runtime import RuntimeUnavailable
 from .service import Service, safe_path
 from .storage import DEFAULT_MODEL, EFFORTS, ROOT, Store, now, uid
@@ -162,21 +164,21 @@ def create_app(data_dir: Path | None = None, runtime=None):
             try:
                 service.scope(request.headers.get("authorization", "").removeprefix("Bearer "))
             except PermissionError:
-                return JSONResponse({"detail": "Autorización MCP requerida."}, status_code=401)
+                return JSONResponse({"detail": tr("Autorización MCP requerida.")}, status_code=401)
         else:
             host = request.url.hostname
             if host not in {"localhost", "127.0.0.1", "::1"}:
-                return JSONResponse({"detail": "Esta versión solo permite acceso local."}, status_code=403)
+                return JSONResponse({"detail": tr("Esta versión solo permite acceso local.")}, status_code=403)
             if path.startswith("/api/") and path not in {"/api/bootstrap", "/api/health"}:
                 session = store.one("SELECT * FROM sessions WHERE token=?", (request.cookies.get("hapic_session", ""),))
                 if not session:
-                    return JSONResponse({"detail": "Abre la plataforma para iniciar una sesión local."}, status_code=401)
+                    return JSONResponse({"detail": tr("Abre la plataforma para iniciar una sesión local.")}, status_code=401)
                 if request.method not in {"GET", "HEAD", "OPTIONS"}:
                     origin = request.headers.get("origin")
                     if origin and (urlparse(origin).netloc != request.headers.get("host") or urlparse(origin).scheme != request.url.scheme):
-                        return JSONResponse({"detail": "Origen no autorizado."}, status_code=403)
+                        return JSONResponse({"detail": tr("Origen no autorizado.")}, status_code=403)
                     if not secrets.compare_digest(request.headers.get("x-hapic-csrf", ""), session["csrf"]):
-                        return JSONResponse({"detail": "Sesión inválida. Recarga la página."}, status_code=403)
+                        return JSONResponse({"detail": tr("Sesión inválida. Recarga la página.")}, status_code=403)
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
@@ -186,26 +188,40 @@ def create_app(data_dir: Path | None = None, runtime=None):
             response.headers["Cache-Control"] = "no-store"
         return response
 
+    @app.middleware("http")
+    async def language(request: Request, call_next):
+        with language_context(request.headers.get("accept-language")):
+            response = await call_next(request)
+            if request.url.path.startswith(("/api/", "/mcp")):
+                response.headers["Content-Language"] = get_language()
+                response.headers.append("Vary", "Accept-Language")
+            return response
+
+    @app.exception_handler(StarletteHTTPException)
+    async def http_error(request, exc):
+        detail = tr(exc.detail) if isinstance(exc.detail, str) else exc.detail
+        return JSONResponse({"detail": detail}, status_code=exc.status_code, headers=exc.headers)
+
     @app.exception_handler(ValueError)
     async def value_error(request, exc):
-        return JSONResponse({"detail": str(exc)}, status_code=400)
+        return JSONResponse({"detail": tr(str(exc))}, status_code=400)
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request, exc):
         # Pydantic's default error includes input values, which can contain an API key.
-        return JSONResponse({"detail": "Datos no válidos. Revisa el formato y la longitud de los campos."}, status_code=422)
+        return JSONResponse({"detail": tr("Datos no válidos. Revisa el formato y la longitud de los campos.")}, status_code=422)
 
     @app.exception_handler(LookupError)
     async def lookup_error(request, exc):
-        return JSONResponse({"detail": str(exc)}, status_code=404)
+        return JSONResponse({"detail": tr(str(exc))}, status_code=404)
 
     @app.exception_handler(PermissionError)
     async def permission_error(request, exc):
-        return JSONResponse({"detail": str(exc)}, status_code=403)
+        return JSONResponse({"detail": tr(str(exc))}, status_code=403)
 
     @app.exception_handler(RuntimeUnavailable)
     async def runtime_error(request, exc):
-        return JSONResponse({"detail": str(exc)}, status_code=503)
+        return JSONResponse({"detail": tr(str(exc))}, status_code=503)
 
     @app.get("/api/health")
     def health():
@@ -219,23 +235,23 @@ def create_app(data_dir: Path | None = None, runtime=None):
             store.execute("INSERT INTO sessions VALUES (:token,:csrf,:created_at)", session)
         # Google returns via a cross-site top-level GET. Mutations still require CSRF and same-origin checks.
         response.set_cookie("hapic_session", session["token"], httponly=True, samesite="lax", secure=request.url.scheme == "https", max_age=86400)
-        return {"csrf": session["csrf"], "user": {"id": "local-owner", "name": "Espacio local"}, "mode": "local"}
+        return {"csrf": session["csrf"], "user": {"id": "local-owner", "name": tr("Espacio local")}, "mode": "local"}
 
     @app.get("/api/state")
     def state():
-        return {"organizations": store.all("SELECT o.* FROM organizations o JOIN memberships m ON o.id=m.organization_id WHERE m.user_id='local-owner'"), "projects": store.all("SELECT p.* FROM projects p JOIN memberships m ON p.organization_id=m.organization_id WHERE m.user_id='local-owner'"), "agents": store.all("SELECT a.* FROM agents a JOIN memberships m ON a.organization_id=m.organization_id WHERE m.user_id='local-owner'"), "settings": store.setting("model", {"model": DEFAULT_MODEL, "effort": "xhigh"})}
+        return {"organizations": store.all("SELECT o.* FROM organizations o JOIN memberships m ON o.id=m.organization_id WHERE m.user_id='local-owner'"), "projects": store.all("SELECT p.* FROM projects p JOIN memberships m ON p.organization_id=m.organization_id WHERE m.user_id='local-owner'"), "agents": [localize_fields(agent, "error") for agent in store.all("SELECT a.* FROM agents a JOIN memberships m ON a.organization_id=m.organization_id WHERE m.user_id='local-owner'")], "settings": store.setting("model", {"model": DEFAULT_MODEL, "effort": "xhigh"})}
 
     @app.get("/api/capabilities")
     def capabilities():
-        return {"docker": service.runtime.health(), "openai": {"configured": bool(store.api_key()), "source": "environment" if os.getenv("OPENAI_API_KEY") else "server"}, "local_only": True}
+        return {"docker": localize_fields(service.runtime.health(), "message"), "openai": {"configured": bool(store.api_key()), "source": "environment" if os.getenv("OPENAI_API_KEY") else "server"}, "local_only": True}
 
     @app.get("/api/tools")
     def tool_catalog():
-        return list(CATALOG.values())
+        return [localize_fields(tool, "description") for tool in CATALOG.values()]
 
     @app.get("/api/settings/youtube")
     def youtube_settings(request: Request):
-        return service.youtube.settings(str(request.base_url))
+        return localize_fields(service.youtube.settings(str(request.base_url)), "message")
 
     @app.put("/api/settings/youtube")
     def save_youtube_client(body: GoogleClientInput):
@@ -272,7 +288,7 @@ def create_app(data_dir: Path | None = None, runtime=None):
 
     @app.get("/api/projects/{project_id}/connections/{connection_id}/videos")
     def youtube_videos(project_id: str, connection_id: str, page_token: str | None = None):
-        return service.youtube.run(project_id, connection_id, "youtube_list_videos", {"max_results": 10, "page_token": page_token})
+        return localize_fields(service.youtube.run(project_id, connection_id, "youtube_list_videos", {"max_results": 10, "page_token": page_token}), "external_content", "note")
 
     @app.post("/api/organizations", status_code=201)
     def create_organization(body: NameInput):
@@ -310,16 +326,16 @@ def create_app(data_dir: Path | None = None, runtime=None):
 
     @app.get("/api/agents/{agent_id}/runtime")
     def agent_runtime(agent_id: str):
-        return service.runtime.inspect(service.agent(agent_id), store)
+        return localize_fields(service.runtime.inspect(service.agent(agent_id), store), "message")
 
     @app.get("/api/agents/{agent_id}/messages")
     def messages(agent_id: str):
-        return service.messages(agent_id)
+        return [localize_fields(message, "content") if message["source"] == "artifact" else message for message in service.messages(agent_id)]
 
     @app.get("/api/agents/{agent_id}/events")
     def events(agent_id: str):
         service.agent(agent_id)
-        return store.all("SELECT * FROM events WHERE agent_id=? ORDER BY id DESC LIMIT 100", (agent_id,))
+        return [localize_fields(event, "message") for event in store.all("SELECT * FROM events WHERE agent_id=? ORDER BY id DESC LIMIT 100", (agent_id,))]
 
     @app.post("/api/agents/{agent_id}/chat")
     async def chat(agent_id: str, body: ChatInput):
@@ -347,6 +363,7 @@ def create_app(data_dir: Path | None = None, runtime=None):
             if not prior_input:
                 store.message(agent_id, "user", body.content, "user")
                 store.set_setting("input-" + body.request_id, identity)
+            store.set_setting("agent-language-" + agent_id, get_language())
             answer, status = await service.runtime.chat(agent, store, body.content, body.request_id)
             store.message(agent_id, "assistant", answer)
             result = {"content": answer, "status": status}
@@ -402,7 +419,7 @@ def create_app(data_dir: Path | None = None, runtime=None):
         if not body.api_key.startswith("sk-") or any(c.isspace() for c in body.api_key):
             raise ValueError("La API key no tiene un formato válido.")
         store.secret("openai", body.api_key)
-        return {"configured": True, "message": "Credencial guardada en el servidor. Reinicia los agentes para aplicar una rotación."}
+        return {"configured": True, "message": tr("Credencial guardada en el servidor. Reinicia los agentes para aplicar una rotación.")}
 
     @app.delete("/api/settings/openai")
     def delete_key():

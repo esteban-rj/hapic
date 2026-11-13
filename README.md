@@ -4,7 +4,7 @@
 
 Explora la [demo animada e interactiva de Hapic](https://esteban-rj.github.io/hapic/) o la [galería del dashboard](docs/dashboard.md). La demo permite explorar proyectos, especialistas, archivos y herramientas con datos ilustrativos, pausa del recorrido, modo claro/oscuro y un botón con bandera para alternar entre español e inglés. La preferencia de idioma se conserva al recargar. Incluye una conversación animada con un Community Manager: solicitud, contexto, actividad y un calendario editorial de ejemplo para revisar, disponible en ambos idiomas y temas. El recorrido permite pausar o repetir la conversación y muestra la secuencia completa al preferir movimiento reducido. No ejecuta agentes ni conecta servicios. Las capturas muestran la interfaz real con datos de demostración; cada instalación empieza con su propio espacio vacío.
 
-Hapic es un MVP local en español basado en agentes Hermes persistentes, con interfaz React/Vite, backend FastAPI y metadatos SQLite. Los cinco bocetos iniciales se conservan en [docs/mockups](docs/mockups).
+Hapic es un MVP local en español e inglés basado en agentes Hermes persistentes, con interfaz React/Vite, backend FastAPI y metadatos SQLite. Los cinco bocetos iniciales se conservan en [docs/mockups](docs/mockups).
 
 ## Documentación
 
@@ -48,6 +48,12 @@ Set-Location ..
 Abre http://127.0.0.1:8000. El script también acepta `-Port 8080`. Puedes iniciar directamente con `.\.venv\Scripts\python.exe -m uvicorn backend.app:app --host 127.0.0.1 --port 8000`.
 
 Durante desarrollo: inicia el backend en 8000 y ejecuta `pnpm dev` dentro de `frontend`; Vite sirve en 5173 y reenvía `/api` al backend. El build de producción lo sirve FastAPI desde el mismo origen.
+
+## Idioma / Language
+
+Usa el selector de banderas de la barra superior o de **Configuración → Idioma** para elegir **🇪🇸 Español** o **🇺🇸 English**. Hapic detecta inicialmente el idioma del navegador y conserva tu elección localmente. La interfaz, los mensajes del sistema, las cinco plantillas y sus instrucciones están disponibles en ambos idiomas. Las nuevas respuestas de los agentes siguen el idioma seleccionado, también en perfiles existentes; el historial y los archivos guardados se conservan en su idioma original.
+
+Use the flag selector in the top bar or **Settings → Language** to switch between Spanish and English. The selection is saved in your browser and applies to the interface, system messages, all five specialist templates, and new agent responses. Existing messages and files keep their original content.
 
 ## Recorrido
 
@@ -140,6 +146,7 @@ La configuración fija explícitamente `model.api_mode: codex_responses`, el nom
 $env:HAPIC_DATA_DIR = Join-Path (Get-Location) ('.hapic/test-local-' + [guid]::NewGuid().ToString('N'))
 .\.venv\Scripts\python.exe -m pytest -q --basetemp .hapic/test-local
 Set-Location frontend
+pnpm test
 pnpm build
 ```
 

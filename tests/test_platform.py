@@ -425,3 +425,118 @@ def test_failed_chat_keeps_already_generated_image(client, app):
     messages = service.messages(designer["id"])
     assert len(messages) == 2 and messages[-1]["attachments"]
     assert client.get(messages[-1]["attachments"][0]["url"]).content == PNG
+
+
+@pytest.mark.parametrize("header,expected", [
+    ("en-US,en;q=0.9", "en"), ("es-CO", "es"),
+    ("fr-FR, en-GB;q=0.8, es;q=0.5", "en"),
+    ("en;q=0,es;q=0.9", "es"), ("en;q=broken", "es"), ("fr", "es"),
+])
+def test_language_negotiation_and_request_isolation(client, header, expected):
+    result = client.get("/api/templates/ux", headers={"Accept-Language": header})
+    assert result.headers["Content-Language"] == expected
+    assert "Accept-Language" in result.headers["Vary"]
+    assert result.json()["name"] == ("UX Specialist" if expected == "en" else "Especialista UX")
+    assert client.get("/api/templates/ux", headers={"Accept-Language": "es"}).json()["name"] == "Especialista UX"
+
+
+def test_all_templates_have_complete_english_metadata_and_instructions(client):
+    from backend.storage import ROOT
+    english = client.get("/api/templates", headers={"Accept-Language": "en"}).json()
+    spanish = client.get("/api/templates", headers={"Accept-Language": "es"}).json()
+    localized_fields = {"name", "role", "description", "capabilities", "questions", "deliverables", "evidence_policy", "model_guidance"}
+    for en, es in zip(english, spanish):
+        metadata = json.loads((ROOT / "templates" / en["kind"] / "locales/en/template.json").read_text())
+        assert set(metadata) == set(es) & localized_fields
+        for field in ("id", "version", "kind", "tools", "default_integrations", "recommended_model", "recommended_effort"):
+            assert en.get(field) == es.get(field)
+        assert en["instructions"] != es["instructions"]
+        assert "English" in en["instructions"] and "español" not in en["instructions"]
+        assert en["description"] != es["description"]
+        assert len(en["capabilities"]) == len(es["capabilities"])
+        assert len(en["questions"]) == len(es["questions"])
+        for deliverable in en["deliverables"]:
+            assert deliverable in en["instructions"] or deliverable.startswith(("src/", "tests/", "plans/", "images/"))
+
+
+def test_english_agent_profiles_and_mcp_language_persist(client, app):
+    client.headers["Accept-Language"] = "en"
+    p = project(client)
+    store, service = app.state.store, app.state.service
+    hapic = store.one("SELECT * FROM agents WHERE project_id=?", (p["id"],))
+    assert service.tool(hapic, "get_ux_template", {})["name"] == "UX Specialist"
+    with patch.object(service, "provision"):
+        service.tool(hapic, "create_specialist_agent", {"name": "Architect", "template": "architect"})
+    architect = store.one("SELECT * FROM agents WHERE project_id=? AND kind='architect'", (p["id"],))
+    for kind in ("ux", "graphic-designer", "coder", "community-manager"):
+        result = client.post(f"/api/projects/{p['id']}/agents", json={"name": kind, "template": kind, "planner_id": architect["id"] if kind == "coder" else None})
+        assert result.status_code == 201
+    for agent in store.all("SELECT * FROM agents WHERE project_id=?", (p["id"],)):
+        home = store.agent_path(agent) / "hermes"
+        assert (home / "SOUL.md").read_text().startswith(f"Your name is {agent['name']}.")
+        assert "English" in (home / "SOUL.md").read_text()
+        assert "No memories yet" in (home / "memories/MEMORY.md").read_text()
+        assert store.setting("agent-language-" + agent["id"]) == "en"
+        if agent["kind"] == "ux":
+            assert "traceable evidence" in (home / "skills/ux-method/SKILL.md").read_text()
+    restarted = Service(Store(store.root), TestRuntime())
+    assert restarted.tool(hapic, "get_ux_template", {})["name"] == "UX Specialist"
+    manager = store.one("SELECT * FROM agents WHERE project_id=? AND kind='community-manager'", (p["id"],))
+    with pytest.raises(ValueError, match="Select a channel for this agent in Tools"):
+        restarted.tool(manager, "youtube_get_channel", {})
+
+
+def test_localized_errors_events_and_artifacts_preserve_user_content(client, app):
+    from backend.i18n import tr
+    p = project(client)
+    store = app.state.store
+    agent = store.one("SELECT * FROM agents WHERE project_id=?", (p["id"],))
+    error = "Ruta no permitida."
+    store.execute("UPDATE agents SET name=?,error=? WHERE id=?", (error, error, agent["id"]))
+    store.message(agent["id"], "user", error, "user")
+    store.message(agent["id"], "assistant", error)
+    store.message(agent["id"], "assistant", "Imagen guardada en images/test.png", "artifact")
+    store.event(agent["id"], "Archivo guardado en el workspace: carpeta/archivo.md")
+    client.headers["Accept-Language"] = "en"
+    result = client.get("/api/state").json()["agents"][0]
+    assert result["name"] == error and result["error"] == "Path not allowed."
+    messages = client.get(f"/api/agents/{agent['id']}/messages").json()
+    assert messages[0]["content"] == messages[1]["content"] == error
+    assert messages[2]["content"] == "Image saved to images/test.png"
+    events = client.get(f"/api/agents/{agent['id']}/events").json()
+    assert events[0]["message"] == "File saved in the workspace: carpeta/archivo.md"
+    assert store.one("SELECT error FROM agents WHERE id=?", (agent["id"],))["error"] == error
+    assert client.post("/api/organizations", json={"name": "../bad"}).json()["detail"].startswith("Use a name")
+    assert client.post("/api/organizations", json={"name": ""}).json()["detail"].startswith("Invalid data")
+    assert client.post("/api/organizations", headers={"X-Hapic-CSRF": "wrong"}, json={"name": "Test"}).json()["detail"] == "Invalid session. Reload the page."
+    assert client.post(f"/api/agents/{agent['id']}/chat", json={"content": "Hello"}).json()["detail"].startswith("Configure the API key in Settings")
+    assert tr("Hermes devolvió HTTP 401. Comprueba credencial, acceso al modelo y estado del proveedor.", "en").startswith("Hermes returned HTTP 401.")
+    assert tr("Imagen guardada en el workspace: images/test.png", "en") == "Image saved in the workspace: images/test.png"
+
+
+def test_switching_existing_chat_language_preserves_profile_and_history(client, app):
+    from backend.runtime import platform_instructions
+    project(client)
+    store = app.state.store
+    agent = client.get("/api/state").json()["agents"][0]
+    home = store.agent_path(agent) / "hermes"
+    original_profile = (home / "SOUL.md").read_bytes()
+    store.secret("openai", "test-key-for-language-double")
+    store.execute("UPDATE agents SET container_id='double' WHERE id=?", (agent["id"],))
+    seen = []
+
+    class LanguageRuntime(TestRuntime):
+        async def chat(self, current, current_store, text, request_id):
+            seen.append(platform_instructions(current, current_store))
+            return text, "completed"
+
+    app.state.service.runtime = LanguageRuntime()
+    for language, content in (("en", "Hello"), ("es", "Hola")):
+        result = client.post(f"/api/agents/{agent['id']}/chat", headers={"Accept-Language": language}, json={"content": content, "request_id": "language-" + language})
+        assert result.status_code == 200
+        assert store.setting("agent-language-" + agent["id"]) == language
+    assert "Current platform language: English" in seen[0]
+    assert "Idioma actual de la plataforma: español" in seen[1]
+    assert "Hablas español" not in seen[0]
+    assert (home / "SOUL.md").read_bytes() == original_profile
+    assert [m["content"] for m in client.get(f"/api/agents/{agent['id']}/messages").json()] == ["Hello", "Hello", "Hola", "Hola"]

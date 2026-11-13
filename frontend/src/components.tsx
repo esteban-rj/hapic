@@ -1,3 +1,4 @@
+import { useI18n } from "./useI18n";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ModelSelect } from "./ModelSelect";
 import {
@@ -35,15 +36,16 @@ export function Mark({ small = false }: { small?: boolean }) {
   );
 }
 export function Badge({ status }: { status: string }) {
+  const { t } = useI18n();
   const labels: Record<string, string> = {
-    pending: "Pendiente de iniciar",
-    provisioning: "Preparando runtime",
-    running: "API disponible",
-    blocked: "Requiere configuración",
-    error: "Error de provisión",
-    stopped: "Detenido",
-    unavailable: "Sin conexión",
-    starting: "API iniciando",
+    pending: t("Pendiente de iniciar"),
+    provisioning: t("Preparando runtime"),
+    running: t("API disponible"),
+    blocked: t("Requiere configuración"),
+    error: t("Error de provisión"),
+    stopped: t("Detenido"),
+    unavailable: t("Sin conexión"),
+    starting: t("API iniciando"),
   };
   return (
     <span className={"status " + status}>
@@ -81,6 +83,7 @@ export function Modal({
   children: ReactNode;
   close: () => void;
 }) {
+  const { t } = useI18n();
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = ref.current;
@@ -101,7 +104,7 @@ export function Modal({
     >
       <header>
         <h2>{title}</h2>
-        <button className="icon-button" aria-label="Cerrar" onClick={close}>
+        <button className="icon-button" aria-label={t("Cerrar")} onClick={close}>
           <X size={19} />
         </button>
       </header>
@@ -174,6 +177,7 @@ export function TemplateCard({
   compact?: boolean;
   onUse?: () => void;
 }) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   return (
     <section className="card template-card">
@@ -183,7 +187,7 @@ export function TemplateCard({
         </span>
         <div>
           <h3>{template.name}</h3>
-          <span className="muted tiny">Plantilla · v{template.version}</span>
+          <span className="muted tiny">{t("Plantilla · v")}{template.version}</span>
         </div>
         <span className="tag">{template.role}</span>
       </div>
@@ -198,18 +202,18 @@ export function TemplateCard({
       </div>
       {!compact ? (
         <>
-          <h4>Antes de empezar</h4>
+          <h4>{t("Antes de empezar")}</h4>
           <ul className="questions">
             {template.questions.map((q) => (
               <li key={q}>{q}</li>
             ))}
           </ul>
           <div className="evidence">
-            <strong>Forma de trabajo</strong>
+            <strong>{t("Forma de trabajo")}</strong>
             <p>{template.evidence_policy}</p>
           </div>
-          {template.recommended_model ? <p className="model-recommendation"><strong>Modelo recomendado</strong><br /><code>{template.recommended_model}</code> · {template.recommended_effort}<br />{template.model_guidance}</p> : null}
-          <h4>Entregables</h4>
+          {template.recommended_model ? <p className="model-recommendation"><strong>{t("Modelo recomendado")}</strong><br /><code>{template.recommended_model}</code> · {t(template.recommended_effort || "medium")}<br />{template.model_guidance}</p> : null}
+          <h4>{t("Entregables")}</h4>
           <div className="file-tags">
             {template.deliverables.map((d) => (
               <code key={d}>{d}</code>
@@ -223,28 +227,30 @@ export function TemplateCard({
             }}
           >
             {copied ? <Check size={15} /> : <Copy size={15} />}
-            {copied ? "Instrucciones copiadas" : "Copiar instrucciones"}
+            {copied ? t("Instrucciones copiadas") : t("Copiar instrucciones")}
           </button>
         </>
       ) : (
         <p className="tiny muted">
-          Memoria nueva y herramientas limitadas a su workspace.
+          {t("Memoria nueva y herramientas limitadas a su workspace.")}
         </p>
       )}
-      {onUse ? <button className="primary template-use" onClick={onUse}>Usar plantilla <ChevronRight size={15} /></button> : null}
+      {onUse ? <button className="primary template-use" onClick={onUse}>{t("Usar plantilla")} <ChevronRight size={15} /></button> : null}
     </section>
   );
 }
 
 export function ImagePreview({ src, alt, download }: { src: string; alt: string; download: string }) {
+  const { t } = useI18n();
   const [failed, setFailed] = useState(false);
   return <figure className="image-preview">
-    {failed ? <p role="alert">No se pudo cargar esta imagen. Comprueba que el archivo siga en el workspace.</p> : <a href={src} target="_blank" rel="noreferrer"><img src={src} alt={alt} loading="lazy" onError={() => setFailed(true)} /></a>}
-    <figcaption><span>{alt}</span><a href={download} download>Descargar</a></figcaption>
+    {failed ? <p role="alert">{t("No se pudo cargar esta imagen. Comprueba que el archivo siga en el workspace.")}</p> : <a href={src} target="_blank" rel="noreferrer"><img src={src} alt={alt} loading="lazy" onError={() => setFailed(true)} /></a>}
+    <figcaption><span>{alt}</span><a href={download} download>{t("Descargar")}</a></figcaption>
   </figure>;
 }
 
 function MessageContent({ message, agent }: { message: Message; agent: Agent }) {
+  const { t } = useI18n();
   // Render local workspace image references only; no HTML or arbitrary remote requests.
   const pieces = message.content.split(/(!\[[^\]]*\]\([^)]+\))/g);
   return <>
@@ -252,7 +258,7 @@ function MessageContent({ message, agent }: { message: Message; agent: Agent }) 
       const match = piece.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
       if (!match) return piece ? <p key={index}>{piece}</p> : null;
       const raw = match[2].replace(/^<|>$/g, "");
-      if (/^(?:https?:|data:|javascript:|\/\/)/i.test(raw)) return <p key={index}>{match[1] || "Referencia de imagen externa"}</p>;
+      if (/^(?:https?:|data:|javascript:|\/\/)/i.test(raw)) return <p key={index}>{match[1] || t("Referencia de imagen externa")}</p>;
       const relative = raw.replace(/^\/workspace\//, "").replace(/^\.\//, "");
       const path = relative.startsWith("agents/") || relative.startsWith("workspace/") ? relative : `agents/${agent.id}/workspace/${relative}`;
       return <ImagePreview key={path} src={imageUrl(agent.project_id, path)} alt={match[1] || relative} download={imageUrl(agent.project_id, path, true)} />;
@@ -262,14 +268,16 @@ function MessageContent({ message, agent }: { message: Message; agent: Agent }) 
 }
 
 export function CreateAgentModal({ template, projects, agents, initialProjectId, close, created }: { template: Template; projects: Project[]; agents: Agent[]; initialProjectId: string; close: () => void; created: (agent: Agent) => Promise<void> }) {
+  const { t, language } = useI18n();
   const [projectId, setProjectId] = useState(initialProjectId || projects[0]?.id || "");
   const [name, setName] = useState("");
   const [plannerId, setPlannerId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  useEffect(() => { setError(""); }, [language]);
   const planners = agents.filter((a) => a.project_id === projectId && a.kind === "architect");
   const selectedPlanner = planners.find((a) => a.id === plannerId)?.id || (planners.length === 1 ? planners[0].id : "");
-  return <Modal title={"Crear · " + template.name} close={() => { if (!busy) close(); }}>
+  return <Modal title={t("Crear · ") + template.name} close={() => { if (!busy) close(); }}>
     <form onSubmit={async (event) => {
       event.preventDefault();
       setBusy(true); setError("");
@@ -277,15 +285,15 @@ export function CreateAgentModal({ template, projects, agents, initialProjectId,
       catch (error) { setError((error as Error).message); }
       finally { setBusy(false); }
     }}>
-      <p className="muted">{template.description} El perfil tendrá memoria nueva y archivos persistentes.</p>
-      <label htmlFor="agent-project">Proyecto</label>
-      <select id="agent-project" value={projectId} required disabled={busy} onChange={(e) => { setProjectId(e.target.value); setPlannerId(""); }}><option value="">Selecciona un proyecto</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
-      <label htmlFor="agent-name">Nombre del agente</label>
-      <input id="agent-name" value={name} maxLength={80} required disabled={busy} onChange={(e) => setName(e.target.value)} placeholder="Elige su nombre" />
-      {template.kind === "coder" ? <><label htmlFor="agent-planner">Arquitecto / Planner</label><select id="agent-planner" value={selectedPlanner} onChange={(e) => setPlannerId(e.target.value)} required disabled={busy}><option value="">Selecciona un arquitecto</option>{planners.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select><p className="field-help">{planners.length ? "El coder leerá el plan publicado por este arquitecto antes de escribir código." : "Primero crea un arquitecto/planner en este proyecto."}</p></> : null}
-      {template.recommended_model ? <p className="field-help">Recomendación: {template.recommended_model} · {template.recommended_effort}. Se aplicarán tus preferencias globales, ajustables en el chat. {template.model_guidance}</p> : null}
+      <p className="muted">{template.description} {t("El perfil tendrá memoria nueva y archivos persistentes.")}</p>
+      <label htmlFor="agent-project">{t("Proyecto")}</label>
+      <select id="agent-project" value={projectId} required disabled={busy} onChange={(e) => { setProjectId(e.target.value); setPlannerId(""); }}><option value="">{t("Selecciona un proyecto")}</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+      <label htmlFor="agent-name">{t("Nombre del agente")}</label>
+      <input id="agent-name" value={name} maxLength={80} required disabled={busy} onChange={(e) => setName(e.target.value)} placeholder={t("Elige su nombre")} />
+      {template.kind === "coder" ? <><label htmlFor="agent-planner">{t("Arquitecto / Planner")}</label><select id="agent-planner" value={selectedPlanner} onChange={(e) => setPlannerId(e.target.value)} required disabled={busy}><option value="">{t("Selecciona un arquitecto")}</option>{planners.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select><p className="field-help">{planners.length ? t("El coder leerá el plan publicado por este arquitecto antes de escribir código.") : t("Primero crea un arquitecto/planner en este proyecto.")}</p></> : null}
+      {template.recommended_model ? <p className="field-help">{t("Recomendación: {model} · {effort}. Se aplicarán tus preferencias globales, ajustables en el chat.", { model: template.recommended_model, effort: t(template.recommended_effort || "medium") })} {template.model_guidance}</p> : null}
       {error ? <p className="inline-error" role="alert">{error}</p> : null}
-      <div className="modal-actions"><button type="button" className="secondary" disabled={busy} onClick={close}>Cancelar</button><button className="primary" disabled={busy || !projectId || (template.kind === "coder" && !selectedPlanner)}>{busy ? "Preparando…" : "Crear agente"}</button></div>
+      <div className="modal-actions"><button type="button" className="secondary" disabled={busy} onClick={close}>{t("Cancelar")}</button><button className="primary" disabled={busy || !projectId || (template.kind === "coder" && !selectedPlanner)}>{busy ? t("Preparando…") : t("Crear agente")}</button></div>
     </form>
   </Modal>;
 }
@@ -305,6 +313,7 @@ export function Chat({
   onPrepare: (kind: Template["kind"]) => void;
   templates: Template[];
 }) {
+  const { t, language } = useI18n();
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -314,6 +323,7 @@ export function Chat({
   const [effort, setEffort] = useState(agent.effort);
   useEffect(() => {
     let active = true;
+    setError("");
     api<Message[]>("/agents/" + agent.id + "/messages")
       .then((m) => {
         if (active) setMessages(m);
@@ -324,7 +334,7 @@ export function Chat({
     return () => {
       active = false;
     };
-  }, [agent.id]);
+  }, [agent.id, language]);
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [messages, busy]);
@@ -362,7 +372,7 @@ export function Chat({
         <div>
           <strong>{agent.name}</strong>
           <span className="tiny muted">
-            {agentRoles[agent.kind]}
+            {t(agentRoles[agent.kind])}
           </span>
         </div>
       </div>
@@ -374,12 +384,12 @@ export function Chat({
             </span>
             <h2>
               {agent.kind === "hapic"
-                ? "¿Qué vamos a crear?"
-                : agentRoles[agent.kind]}
+                ? t("¿Qué vamos a crear?")
+                : t(agentRoles[agent.kind])}
             </h2>
             <p>
               {agent.kind === "hapic"
-                ? "Dale a tu proyecto un especialista con contexto, memoria y un espacio propio."
+                ? t("Dale a tu proyecto un especialista con contexto, memoria y un espacio propio.")
                 : templates.find((t) => t.kind === agent.kind)?.description}
             </p>
             {agent.kind === "hapic" ? (
@@ -389,26 +399,25 @@ export function Chat({
                 disabled={busy}
                 onClick={() => {
                   if (connected)
-                    setText(`Quiero crear un ${template.name} para este proyecto.`);
+                    setText(t("Quiero crear un {name} para este proyecto.", { name: template.name }));
                   else onPrepare(template.kind);
                 }}
               >
                 <Sparkles size={16} />
-                {connected ? "Crear " : "Preparar "}{template.name}
+                {t(connected ? "Crear {name}" : "Preparar {name}", { name: template.name })}
               </button>)}</div>
             ) : null}
             {!connected ? (
               <div className="offline-note">
                 <span className="status">
                   <i />
-                  IA pendiente de conexión
+                  {t("IA pendiente de conexión")}
                 </span>
                 <p>
-                  Puedes preparar perfiles y archivos. Para conversar, configura
-                  OpenAI e inicia el runtime Docker.
+                  {t("Puedes preparar perfiles y archivos. Para conversar, configura OpenAI e inicia el runtime Docker.")}
                 </p>
                 <button className="text-button" onClick={onSettings}>
-                  Ir a configuración <ChevronRight size={14} />
+                  {t("Ir a configuración")} <ChevronRight size={14} />
                 </button>
               </div>
             ) : null}
@@ -419,7 +428,7 @@ export function Chat({
             {m.role !== "user" ? <Mark small /> : null}
             <div className="message-body">
               <span className="message-label">
-                {m.role === "user" ? "Tú" : agent.name}
+                {m.role === "user" ? t("Tú") : agent.name}
               </span>
               <MessageContent message={m} agent={agent} />
             </div>
@@ -428,7 +437,7 @@ export function Chat({
         {busy ? (
           <div className="thinking">
             <LoaderCircle className="spin" size={16} />
-            {agent.name} está trabajando…
+            {t("{name} está trabajando…", { name: agent.name })}
           </div>
         ) : null}
         <div ref={bottom} />
@@ -440,7 +449,7 @@ export function Chat({
       ) : null}
       <form className="composer" onSubmit={send}>
         <label className="sr-only" htmlFor="chat-input">
-          Mensaje para {agent.name}
+          {t("Mensaje para {name}", { name: agent.name })}
         </label>
         <textarea
           id="chat-input"
@@ -448,7 +457,7 @@ export function Chat({
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={
-            "Escribe a " + agent.name + "…"
+            t("Escribe a {name}…", { name: agent.name })
           }
           disabled={busy || !connected}
           onKeyDown={(e) => {
@@ -461,32 +470,32 @@ export function Chat({
         <div className="composer-bottom">
           <div className="composer-selects">
             <label>
-              <span className="sr-only">Modelo de la conversación</span>
+              <span className="sr-only">{t("Modelo de la conversación")}</span>
               <ModelSelect
                 value={model}
                 savedValue={agent.model}
                 onChange={setModel}
-                ariaLabel="Modelo de la conversación"
+                ariaLabel={t("Modelo de la conversación")}
                 disabled={busy}
               />
             </label>
             <label>
-              <span className="sr-only">Razonamiento</span>
+              <span className="sr-only">{t("Razonamiento")}</span>
               <select
                 value={effort}
                 onChange={(e) => setEffort(e.target.value)}
-                aria-label="Razonamiento de la conversación"
+                aria-label={t("Razonamiento de la conversación")}
                 disabled={busy}
               >
                 {["low", "medium", "high", "xhigh", "max"].map((v) => (
-                  <option key={v}>{v}</option>
+                  <option key={v} value={v}>{t(v)}</option>
                 ))}
               </select>
             </label>
           </div>
           <button
             className="send"
-            aria-label="Enviar mensaje"
+            aria-label={t("Enviar mensaje")}
             disabled={busy || !text.trim() || !connected}
           >
             {busy ? (
@@ -498,8 +507,7 @@ export function Chat({
         </div>
       </form>
       <p className="chat-footnote">
-        Estado y memoria locales. Las consultas y el contexto se envían a
-        OpenAI.
+        {t("Estado y memoria locales. Las consultas y el contexto se envían a OpenAI.")}
       </p>
     </section>
   );
