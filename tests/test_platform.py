@@ -96,6 +96,59 @@ def test_keys_encrypted_redacted_and_excluded(client, app):
     assert not app.state.store.api_key()
 
 
+@pytest.mark.parametrize("environment_key", ["", "sk-proj-" + "environment" * 4])
+def test_openai_key_rotation_persists_and_delete_restores_fallback(client, app, monkeypatch, environment_key):
+    monkeypatch.setenv("OPENAI_API_KEY", environment_key)
+    store = app.state.store
+    assert store.api_key() == (environment_key or None)
+    assert client.get("/api/capabilities").json()["openai"] == {
+        "configured": bool(environment_key), "source": "environment" if environment_key else "server",
+    }
+    keys = ["sk-proj-" + "first" * 8, "sk-proj-" + "replacement" * 4]
+    for key in keys:
+        response = client.put("/api/settings/openai", json={"api_key": key})
+        assert response.status_code == 200
+        assert store.api_key() == key
+        assert key.encode() not in (store.secrets_dir / "openai.enc").read_bytes()
+        capabilities = client.get("/api/capabilities")
+        assert capabilities.json()["openai"] == {"configured": True, "source": "server"}
+        for secret in [environment_key, *keys]:
+            if secret:
+                assert secret not in response.text + capabilities.text + client.get("/api/state").text
+
+    restarted_app = create_app(store.root, TestRuntime())
+    assert restarted_app.state.store.api_key() == keys[-1]
+    with TestClient(restarted_app, base_url="http://localhost") as restarted:
+        csrf = restarted.get("/api/bootstrap").json()["csrf"]
+        restarted.headers["X-Hapic-CSRF"] = csrf
+        assert restarted.get("/api/capabilities").json()["openai"] == {"configured": True, "source": "server"}
+        response = restarted.delete("/api/settings/openai")
+        assert response.status_code == 200
+        assert response.json() == {"configured": bool(environment_key)}
+        assert restarted_app.state.store.api_key() == (environment_key or None)
+        assert not (store.secrets_dir / "openai.enc").exists()
+        assert restarted.get("/api/capabilities").json()["openai"] == {
+            "configured": bool(environment_key), "source": "environment" if environment_key else "server",
+        }
+
+
+@pytest.mark.parametrize("invalid_key", ["sk-short", "bad-" + "x" * 40, "sk-" + "x " * 20, "sk-" + "x" * 600])
+def test_invalid_openai_replacement_preserves_current_key(client, app, monkeypatch, invalid_key):
+    environment_key = "sk-proj-" + "environment" * 4
+    monkeypatch.setenv("OPENAI_API_KEY", environment_key)
+    response = client.put("/api/settings/openai", json={"api_key": invalid_key})
+    assert response.status_code in {400, 422} and invalid_key not in response.text
+    assert app.state.store.api_key() == environment_key
+    assert client.get("/api/capabilities").json()["openai"]["source"] == "environment"
+
+    saved_key = "sk-proj-" + "saved" * 8
+    assert client.put("/api/settings/openai", json={"api_key": saved_key}).status_code == 200
+    response = client.put("/api/settings/openai", json={"api_key": invalid_key})
+    assert response.status_code in {400, 422} and invalid_key not in response.text
+    assert app.state.store.api_key() == saved_key
+    assert client.get("/api/capabilities").json()["openai"]["source"] == "server"
+
+
 def test_sessions_csrf_origin_and_membership(client, app):
     assert client.post("/api/organizations", json={"name": "no"}, headers={"X-Hapic-CSRF": "wrong"}).status_code == 403
     assert client.post("/api/organizations", json={"name": "no"}, headers={"Origin": "https://attacker.example"}).status_code == 403
@@ -313,7 +366,9 @@ def test_docker_lifecycle_contract_and_readiness(client, app, monkeypatch):
     p = project(client)
     agent = client.get("/api/state").json()["agents"][0]
     store = app.state.store
-    store.secret("openai", "test-key-only-for-a-docker-double")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-environment-key-only-for-a-docker-double")
+    saved_key = "sk-saved-key-only-for-a-docker-double"
+    assert client.put("/api/settings/openai", json={"api_key": saved_key}).status_code == 200
     runtime = DockerRuntime()
     sdk = MagicMock()
     sdk.containers.get.side_effect = docker.errors.NotFound("not found")
@@ -331,7 +386,7 @@ def test_docker_lifecycle_contract_and_readiness(client, app, monkeypatch):
     assert not any("docker.sock" in x for x in kwargs["volumes"])
     assert kwargs["ports"]["8642/tcp"][0] == "127.0.0.1"
     assert kwargs["environment"]["HERMES_HOME"] == "/opt/data"
-    assert kwargs["environment"]["OPENAI_API_KEY"] == store.api_key()
+    assert kwargs["environment"]["OPENAI_API_KEY"] == saved_key
     config = yaml.safe_load((store.agent_path(agent) / "hermes/config.yaml").read_text())
     assert config["platform_toolsets"]["api_server"] == ["memory", "hapic"]
     assert store.api_key() not in json.dumps(config)

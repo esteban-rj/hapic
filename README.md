@@ -58,7 +58,7 @@ Use the flag selector in the top bar or **Settings → Language** to switch betw
 ## Recorrido
 
 1. Crea una organización y un proyecto desde la plataforma. Se guardan registros, pertenencia del operador local y carpetas reales. El proyecto recibe un perfil Hapic nuevo.
-2. En Configuración, define la API key de OpenAI mediante el formulario dedicado. También puedes definir `OPENAI_API_KEY` en el entorno del servidor o en un archivo `.env` ignorado por Git. Nunca la pegues en el chat.
+2. En Configuración, define o reemplaza la API key de OpenAI mediante el formulario dedicado. La clave guardada tiene prioridad sobre `OPENAI_API_KEY` del entorno del servidor o del archivo `.env` ignorado por Git, que se usa como respaldo. Inicia o reinicia los agentes para aplicar la clave nueva. Nunca la pegues en el chat.
 3. Inicia Docker Desktop. Abre Hapic y pulsa **Iniciar runtime**. Si ya hay key al crear un proyecto, se solicita su arranque automáticamente.
 4. Pide crear un especialista UX, diseñador gráfico, arquitecto/planner, coder o community manager; también puedes ir a **Plantillas → Usar plantilla**. Hapic pregunta el nombre si falta y usa las herramientas MCP de provisión.
 5. Abre el especialista, conversa y consulta archivos/actividad. Los entregables aparecen solo cuando se guardan de verdad.

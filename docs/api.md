@@ -31,8 +31,8 @@ Los hosts de la interfaz y API se limitan a `localhost`, `127.0.0.1` y `::1`. Lo
 | GET | `/api/projects/{project_id}/image?path=…` | Imagen del workspace; `download=true` para descargar; admite `agent_id` |
 | PUT | `/api/settings/model` | Modelo y esfuerzo predeterminados para nuevos agentes |
 | PUT | `/api/agents/{agent_id}/model` | Modelo y esfuerzo de un agente existente |
-| PUT | `/api/settings/openai` | Guardar `api_key` en el servidor; nunca devuelve su valor |
-| DELETE | `/api/settings/openai` | Eliminar la credencial guardada en archivo del servidor |
+| PUT | `/api/settings/openai` | Guardar o reemplazar `api_key` cifrada en el servidor con prioridad sobre `OPENAI_API_KEY`; nunca devuelve su valor |
+| DELETE | `/api/settings/openai` | Eliminar la credencial guardada y volver a `OPENAI_API_KEY` si está definida; devuelve `configured` |
 | GET | `/api/tools` | Catálogo de integraciones reutilizables |
 | GET | `/api/settings/youtube` | Estado, origen (`file`, `server`, `none`), scopes y URI de retorno; sin secretos o ruta privada |
 | PUT | `/api/settings/youtube` | Cargar el JSON OAuth web en `credentials` para el operador local; se rechaza cuando el servidor administra un archivo |

@@ -106,7 +106,8 @@ class Store:
         return self.fernet.decrypt(path.read_bytes()).decode() if path.exists() else None
 
     def api_key(self):
-        return os.getenv("OPENAI_API_KEY") or self.secret("openai")
+        # An explicit replacement saved in Settings survives control-plane restarts.
+        return self.secret("openai") or os.getenv("OPENAI_API_KEY") or None
 
     def token(self, agent_id, kind):
         key = f"{agent_id}-{kind}"

@@ -1060,9 +1060,9 @@ function App() {
                     onSubmit={(e) => {
                       e.preventDefault();
                       const value = key;
-                      setKey("");
                       action(async () => {
                         await put("/settings/openai", { api_key: value });
+                        setKey("");
                         await refresh();
                         setToast(
                           t("API key guardada. Inicia o reinicia los agentes para aplicarla."),
@@ -1097,21 +1097,20 @@ function App() {
                           ? t("Introduce una nueva clave para reemplazarla")
                           : "sk-…"
                       }
-                      disabled={caps?.openai.source === "environment"}
+                      disabled={busy}
                       minLength={20}
+                      maxLength={512}
                       required
                     />
                     <p className="field-help">
                       {caps?.openai.source === "environment"
-                        ? t("Administrada por la variable del servidor OPENAI_API_KEY.")
+                        ? t("Se usa OPENAI_API_KEY del servidor. Guarda una nueva clave aquí para reemplazarla.")
                         : t("No la pegues en una conversación. Usa solo este formulario local.")}
                     </p>
                     <div className="button-row">
                       <button
                         className="primary"
-                        disabled={
-                          busy || !key || caps?.openai.source === "environment"
-                        }
+                        disabled={busy || !key}
                       >
                         {t("Guardar credencial")}
                       </button>
@@ -1120,14 +1119,17 @@ function App() {
                         <button
                           className="text-button"
                           type="button"
+                          disabled={busy}
                           onClick={() =>
                             action(async () => {
-                              await api("/settings/openai", {
+                              const result = await api<{ configured: boolean }>("/settings/openai", {
                                 method: "DELETE",
                               });
                               await refresh();
                               setToast(
-                                t("Credencial eliminada del servidor. Los contenedores existentes conservan su entorno hasta reiniciarlos."),
+                                result.configured
+                                  ? t("Credencial guardada eliminada. Se vuelve a usar OPENAI_API_KEY del servidor. Reinicia los agentes para aplicarla.")
+                                  : t("Credencial eliminada del servidor. Los contenedores existentes conservan su entorno hasta reiniciarlos."),
                               );
                             })
                           }
