@@ -2213,11 +2213,14 @@ textarea::placeholder {
 button, select { color: inherit; }
 .theme-toggle { flex-shrink: 0; width: 32px; height: 32px; }
 .language-selector {
-  width: 56px;
-  min-width: 56px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-width: 32px;
   height: 32px;
   flex-shrink: 0;
-  padding: 4px 8px;
+  padding: 0;
   border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--surface);
