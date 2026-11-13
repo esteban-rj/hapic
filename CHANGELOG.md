@@ -4,6 +4,7 @@ Este archivo registra los cambios del proyecto. Las versiones siguen el esquema 
 
 ## Sin publicar — 2026-11-12
 
+- Corregida la sustitución de la API key de OpenAI desde Configuración cuando existe `OPENAI_API_KEY`: la clave cifrada guardada tiene prioridad persistente; al eliminarla, se recupera la del entorno si está definida.
 - Soporte de español e inglés en la plataforma, mensajes del sistema y todas las plantillas, incluidas las instrucciones de Hapic y la habilidad UX.
 - Selector de banderas en la barra superior y en Configuración, con detección inicial del idioma del navegador y preferencia persistente entre recargas y pestañas.
 - Nuevas respuestas de agentes en el idioma seleccionado, con conservación de perfiles, historial y archivos existentes; la creación por MCP hereda el idioma del agente.

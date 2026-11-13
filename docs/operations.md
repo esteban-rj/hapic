@@ -37,11 +37,11 @@ La salud de FastAPI solo confirma el control de gestión. En la interfaz, abre e
 
 En la plataforma: **Configuración → Conexión con OpenAI → API key → Guardar credencial**.
 
-También se admite `OPENAI_API_KEY` en el entorno del servidor o en `.env`. Cuando está definida en el entorno, la UI informa de su origen y no permite reemplazarla desde el formulario. Compose interpola la variable para el control de gestión.
+También se admite `OPENAI_API_KEY` en el entorno del servidor o en `.env`. La UI informa cuando se está usando esa variable y permite guardar una nueva clave desde el mismo formulario. La clave guardada se cifra, tiene prioridad sobre el entorno y conserva esa prioridad tras reiniciar Hapic. Compose interpola la variable para el control de gestión.
 
 No incluyas la key en chats, comandos guardados, incidencias ni capturas. La API solo devuelve si está configurada y su origen.
 
-Para rotarla, guarda la nueva key en su origen y reinicia los agentes desde la interfaz para recrear sus entornos. Eliminar el archivo de credencial del servidor no revoca la key en OpenAI ni borra el entorno de contenedores existentes.
+Para rotarla, guarda la nueva key en el formulario y reinicia los agentes desde la interfaz para recrear sus entornos. Al eliminar la credencial guardada, se vuelve a usar `OPENAI_API_KEY` si está definida; en caso contrario, la conexión queda sin configurar. Si prefieres administrarla solo desde el entorno, elimina primero la clave guardada, actualiza la variable y recrea el control de gestión y los agentes. Eliminar el archivo de credencial del servidor no revoca la key en OpenAI ni borra el entorno de contenedores existentes.
 
 ## Ciclo de vida de contenedores
 
