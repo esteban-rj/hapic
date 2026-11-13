@@ -102,8 +102,8 @@ export type FileNode = {
 export const agentRoles: Record<Agent["kind"], string> = {
   hapic: "Orquestador", ux: "Especialista UX", "graphic-designer": "Diseñador gráfico", architect: "Arquitecto / Planner", coder: "Coder", "community-manager": "Community Manager",
 };
-export function imageUrl(projectId: string, path: string, download = false) {
-  return `/api/projects/${projectId}/image?path=${encodeURIComponent(path)}${download ? "&download=true" : ""}`;
+export function imageUrl(projectId: string, path: string, download = false, agentId?: string) {
+  return `/api/projects/${projectId}/image?path=${encodeURIComponent(path)}${download ? "&download=true" : ""}${agentId ? "&agent_id=" + encodeURIComponent(agentId) : ""}`;
 }
 export type Attachment = { id: string; path: string; name: string; url: string; mime_type: string };
 export type Message = { id: number; role: string; content: string; source: string; attachments?: Attachment[] };

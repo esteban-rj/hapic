@@ -1,4 +1,7 @@
 {
+  "Archivos de {name}": "Files for {name}",
+  "Solo archivos propios o accesibles para este agente. Los secretos y logs están excluidos.": "Only files owned by or accessible to this agent. Secrets and logs are excluded.",
+  "Imagen del agente": "Agent image",
   "Resumen": "Overview",
   "Proyectos": "Projects",
   "Agentes": "Agents",

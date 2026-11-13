@@ -1,4 +1,7 @@
 {
+  "El agente está fuera del proyecto autorizado.": "The agent is outside the authorized project.",
+  "El archivo está fuera del alcance de este agente.": "The file is outside this agent’s scope.",
+  "Plan compartido": "Shared plan",
   "Plantilla no válida.": "Invalid template.",
   "Usa un nombre de 1 a 80 caracteres, sin rutas ni caracteres de control.": "Use a name of 1 to 80 characters, without paths or control characters.",
   "Ruta no permitida.": "Path not allowed.",

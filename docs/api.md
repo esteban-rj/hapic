@@ -26,9 +26,9 @@ Los hosts de la interfaz y API se limitan a `localhost`, `127.0.0.1` y `::1`. Lo
 | GET | `/api/agents/{agent_id}/messages` | Historial visible de la plataforma |
 | GET | `/api/agents/{agent_id}/events` | Hasta 100 eventos recientes |
 | POST | `/api/agents/{agent_id}/chat` | Enviar turno con `content` y `request_id` único |
-| GET | `/api/projects/{project_id}/tree` | Árbol real filtrado del proyecto |
-| GET | `/api/projects/{project_id}/file?path=…` | Vista previa de documento permitido |
-| GET | `/api/projects/{project_id}/image?path=…` | Imagen del workspace; `download=true` para descargar |
+| GET | `/api/projects/{project_id}/tree` | Árbol real filtrado; `agent_id` limita al agente seleccionado |
+| GET | `/api/projects/{project_id}/file?path=…` | Vista previa de documento permitido; admite `agent_id` |
+| GET | `/api/projects/{project_id}/image?path=…` | Imagen del workspace; `download=true` para descargar; admite `agent_id` |
 | PUT | `/api/settings/model` | Modelo y esfuerzo predeterminados para nuevos agentes |
 | PUT | `/api/agents/{agent_id}/model` | Modelo y esfuerzo de un agente existente |
 | PUT | `/api/settings/openai` | Guardar `api_key` en el servidor; nunca devuelve su valor |
@@ -59,6 +59,8 @@ Reutiliza un `request_id` solo para reintentar exactamente el mismo turno del mi
 ## Archivos
 
 La ruta de vista previa es relativa al proyecto. Se rechazan rutas absolutas, traversal, enlaces simbólicos, uniones de Windows y nombres protegidos. No se previsualizan `config.yaml`, archivos de autenticación, secretos, logs ni bases de datos binarias.
+
+La pestaña **Archivos** envía `agent_id` al consultar el árbol, las vistas previas y las descargas. El servidor limita el resultado al perfil Hermes y workspace propios del agente, más el plan publicado por ese arquitecto o por el arquitecto vinculado al coder. No incluye perfiles, entregables ni planes de otros agentes. El agente debe pertenecer al proyecto autorizado. Sin `agent_id`, estos endpoints conservan la vista de proyecto para el operador local.
 
 Se permiten documentos y extensiones habituales de código (`.py`, `.ts`, `.tsx`, `.js`, `.sql`, etc.), hasta 256 000 bytes. La interfaz muestra el contenido como texto, sin ejecutar HTML o SVG. La ruta de imágenes admite PNG, JPEG, WebP y GIF hasta 20 MiB, verifica su firma y extensión, exige sesión y solo acepta workspaces. Rechaza imágenes dentro de perfiles Hermes y cachés.
 

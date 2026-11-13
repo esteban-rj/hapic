@@ -314,7 +314,29 @@ class Service:
         content = path.read_text(encoding="utf-8")
         return {"planner_id": planner["id"], "planner_name": planner["name"], "path": path.relative_to(root).as_posix(), "content": content, "revision": hashlib.sha256(content.encode()).hexdigest()}
 
-    def image_file(self, project_id, relative):
+    def agent_file_scope(self, project_id, agent_id):
+        agent = self.agent(agent_id)
+        if agent["project_id"] != project_id:
+            raise PermissionError("El agente está fuera del proyecto autorizado.")
+        roots = [("agents", agent_id, folder) for folder in ("hermes", "workspace")]
+        planner_id = agent["id"] if agent["kind"] == "architect" else None
+        if agent["kind"] == "coder" and agent["planner_id"]:
+            planner = self.agent(agent["planner_id"])
+            if planner["project_id"] == project_id and planner["kind"] == "architect":
+                planner_id = planner["id"]
+        plan = ("workspace", "plans", planner_id, "plan.md") if planner_id else None
+        return agent, roots, plan
+
+    def project_file(self, project_id, relative, *, agent_id=None, image=False):
+        project = self.project(project_id)
+        if agent_id is not None:
+            _, roots, plan = self.agent_file_scope(project_id, agent_id)
+            parts = Path(relative).parts
+            if not any(parts[:len(root)] == root for root in roots) and parts != plan:
+                raise PermissionError("El archivo está fuera del alcance de este agente.")
+        return safe_path(self.store.project_path(project), relative, image=image)
+
+    def image_file(self, project_id, relative, *, agent_id=None):
         project = self.project(project_id)
         parts = Path(relative).parts
         # Only workspaces are publishable. Hermes profiles/caches stay private.
@@ -324,7 +346,7 @@ class Service:
                 raise ValueError("La imagen está fuera del proyecto.")
         elif parts[:1] != ("workspace",):
             raise ValueError("Solo se permiten imágenes del workspace.")
-        path = safe_path(self.store.project_path(project), relative, image=True)
+        path = self.project_file(project_id, relative, agent_id=agent_id, image=True)
         with path.open("rb") as file:
             mime = image_type(file.read(16))
         if mime != IMAGE_TYPES[path.suffix.lower()]:
@@ -340,9 +362,16 @@ class Service:
             by_message.setdefault(item["message_id"], []).append({**item, "name": Path(item["path"]).name, "url": f"/api/projects/{agent['project_id']}/image?" + urlencode({"path": item["path"]})})
         return [{**message, "attachments": by_message.get(message["id"], [])} for message in messages]
 
-    def tree(self, project_id):
+    def tree(self, project_id, *, agent_id=None):
         project = self.project(project_id)
         root = self.store.project_path(project)
+        agent, plan = None, None
+        base = root
+        if agent_id is not None:
+            agent, _, plan = self.agent_file_scope(project_id, agent_id)
+            base = self.store.agent_path(agent)
+            # Validate the starting directory too, before enumerating its contents.
+            safe_path(root, f"agents/{agent_id}/scope.md", writing=True)
         count = 0
 
         def visit(path, depth=0):
@@ -351,7 +380,7 @@ class Service:
             relative = path.relative_to(root).as_posix()
             node = {"name": path.name, "path": relative, "type": "directory" if path.is_dir() else "file"}
             if path.is_dir() and depth < 8 and count < 600:
-                node["children"] = [visit(p, depth + 1) for p in sorted(path.iterdir(), key=lambda p: (not p.is_dir(), p.name)) if not p.is_symlink() and not getattr(p, "is_junction", lambda: False)() and not p.name.startswith(".") and p.name not in HIDDEN_NAMES and not p.name.startswith("auth")][:150]
+                node["children"] = [visit(p, depth + 1) for p in sorted(path.iterdir(), key=lambda p: (not p.is_dir(), p.name)) if not p.is_symlink() and not getattr(p, "is_junction", lambda: False)() and not p.name.startswith(".") and p.name not in HIDDEN_NAMES and not p.name.startswith("auth") and (not agent or path != base or p.name in {"hermes", "workspace"})][:150]
             elif path.is_file():
                 node["size"] = path.stat().st_size
                 is_image = path.suffix.lower() in IMAGE_TYPES
@@ -359,9 +388,19 @@ class Service:
                 node["preview"] = path.suffix.lower() in SAFE_EXTENSIONS and node["size"] <= 256_000 and path.name not in {"config.yaml", "config.yml"}
                 if is_image:
                     try:
-                        self.image_file(project_id, relative)
+                        self.image_file(project_id, relative, agent_id=agent_id)
                         node["preview"] = True
                     except (ValueError, LookupError):
                         node["preview"] = False
             return node
-        return visit(root)
+        result = visit(base)
+        if agent:
+            result["name"] = agent["name"]
+            if plan:
+                try:
+                    shared = self.project_file(project_id, Path(*plan).as_posix(), agent_id=agent_id)
+                except ValueError:
+                    pass  # An unpublished or unsafe plan is not a visible file.
+                else:
+                    result.setdefault("children", []).append({"name": tr("Plan compartido"), "path": shared.parent.relative_to(root).as_posix(), "type": "directory", "children": [visit(shared)]})
+        return result

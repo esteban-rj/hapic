@@ -19,7 +19,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .i18n import get_language, language_context, localize_fields, tr
 from .runtime import RuntimeUnavailable
-from .service import Service, safe_path
+from .service import Service
 from .storage import DEFAULT_MODEL, EFFORTS, ROOT, Store, now, uid
 from .templates import SPECIALISTS, template as load_template
 from .tool_catalog import CATALOG
@@ -376,18 +376,17 @@ def create_app(data_dir: Path | None = None, runtime=None):
             lock.release()
 
     @app.get("/api/projects/{project_id}/tree")
-    def tree(project_id: str):
-        return service.tree(project_id)
+    def tree(project_id: str, agent_id: str | None = None):
+        return service.tree(project_id, agent_id=agent_id)
 
     @app.get("/api/projects/{project_id}/file")
-    def read_file(project_id: str, path: str):
-        project = service.project(project_id)
-        file = safe_path(store.project_path(project), path)
+    def read_file(project_id: str, path: str, agent_id: str | None = None):
+        file = service.project_file(project_id, path, agent_id=agent_id)
         return {"path": path, "content": file.read_text(encoding="utf-8"), "size": file.stat().st_size}
 
     @app.get("/api/projects/{project_id}/image")
-    def read_image(project_id: str, path: str, download: bool = False):
-        file, mime = service.image_file(project_id, path)
+    def read_image(project_id: str, path: str, download: bool = False, agent_id: str | None = None):
+        file, mime = service.image_file(project_id, path, agent_id=agent_id)
         return FileResponse(file, media_type=mime, filename=file.name, content_disposition_type="attachment" if download else "inline")
 
     @app.put("/api/settings/model")
