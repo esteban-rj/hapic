@@ -90,9 +90,13 @@ Los PNG se guardan en el workspace del agente y se incluyen en la copia completa
 | Cliente presente, daemon detenido | Inicia Docker Desktop; comprueba WSL2, virtualización y reinicios pendientes |
 | Puerto 8000 ocupado | Comprueba si ya está ejecutándose el servidor nativo o Compose antes de iniciar otro |
 | Credencial pendiente | Configúrala en el formulario dedicado o en el entorno del servidor |
+| OpenAI rechazó la API key de inferencia | Guarda una key válida en Configuración o actualízala en el entorno; reinicia el runtime para que reciba la nueva credencial |
+| Hermes rechazó la autenticación de su API | Reinicia el runtime para sincronizar su token interno de acceso; es independiente de la key de OpenAI |
 | API Hermes lista, turno rechazado | Comprueba acceso al modelo, permisos y saldo de OpenAI; revisa el HTTP informado |
 | Provisión interrumpida | Consulta actividad y runtime; vuelve a solicitar el inicio desde la UI |
 | Archivo ausente del explorador | Comprueba el workspace del agente, el tipo de archivo y si está protegido |
+
+Los fallos del chat muestran la causa informada por Hermes, incluso cuando llegan dentro de una respuesta HTTP correcta. La misma causa se guarda en Actividad, con claves y tokens redactados y una longitud limitada. Si Hermes no incluye detalles, se indica expresamente; una cancelación se distingue de un fallo.
 
 Los logs de Docker pueden contener información sensible. Revísalos localmente y redacta cualquier dato privado antes de compartirlos.
 

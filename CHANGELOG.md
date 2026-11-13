@@ -30,6 +30,7 @@ Este archivo registra los cambios del proyecto. Las versiones siguen el esquema 
 
 ### Corregido
 
+- El chat y Actividad conservan la causa de los fallos de Hermes, con credenciales redactadas; identifican una API key de inferencia inválida y distinguen la autenticación interna de Hermes y las cancelaciones.
 - El chat muestra imágenes adjuntas y referencias Markdown a imágenes locales del workspace.
 - Se guarda el archivo antes de anunciar éxito; el adjunto persiste aunque falle después Hermes.
 - El explorador reconoce PNG, JPEG, WebP y GIF válidos, además de documentos de texto.

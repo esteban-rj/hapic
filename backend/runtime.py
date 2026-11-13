@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 import time
 from pathlib import Path
 
@@ -28,6 +29,66 @@ def platform_instructions(agent, store=None):
 
 class RuntimeUnavailable(Exception):
     pass
+
+
+def response_text(data):
+    """Read only assistant text, including diagnostic text on older failed responses."""
+    output = data.get("output")
+    if not isinstance(output, list):
+        return ""
+    parts = []
+    for item in output:
+        if not isinstance(item, dict) or item.get("type") != "message":
+            continue
+        content = item.get("content")
+        if isinstance(content, list):
+            parts.extend(part["text"] for part in content if isinstance(part, dict)
+                         and part.get("type") == "output_text" and isinstance(part.get("text"), str))
+    return "\n".join(parts)
+
+
+def safe_error_detail(text, secrets):
+    # Redact before truncation: an error may echo full or partially masked keys/headers.
+    for secret in sorted({value for value in secrets if value}, key=len, reverse=True):
+        text = text.replace(secret, "[REDACTADO]")
+    text = re.sub(r"\bsk-[A-Za-z0-9_.*-]+", "[REDACTADO]", text)
+    text = re.sub(r"(?i)\bbearer\s+[^\s\"',;}\]]+", "Bearer [REDACTADO]", text)
+    text = re.sub(r"(?i)([\"']?\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization)[\"']?\s*[:=]\s*)[\"']?[^\s\"',;}]+[\"']?",
+                  r"\1[REDACTADO]", text)
+    text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
+    text = " ".join("".join(char if char.isprintable() else " " for char in text).split())
+    return text[:800] + ("…" if len(text) > 800 else "")
+
+
+def hermes_error(data, http_status, secrets):
+    """Keep Hermes' cause without publishing raw bodies, credentials or request headers."""
+    error = data.get("error")
+    if isinstance(error, dict):
+        detail = ": ".join(error[key] for key in ("code", "type", "message")
+                           if isinstance(error.get(key), str) and error[key].strip())
+    else:
+        detail = error if isinstance(error, str) else ""
+    if not detail:
+        detail = next((data[key] for key in ("detail", "message") if isinstance(data.get(key), str)), "")
+    if not detail and data.get("status") == "failed":
+        detail = response_text(data)
+    detail = safe_error_detail(detail, secrets)
+    # A 401 from Hermes itself concerns API_SERVER_KEY, not the OpenAI inference key.
+    # Upstream authentication errors are also returned inside HTTP 200 failed envelopes.
+    invalid_key = re.search(r"invalid_api_key|incorrect api key|invalid api key|authenticationerror|authentication_error|(?:error code|http|status(?:_code)?)\s*[:=]?\s*401\b", detail, re.I)
+    if invalid_key and (http_status not in {401, 403} or re.search(r"invalid_api_key|incorrect api key|openai", detail, re.I)):
+        return "OpenAI rechazó la API key de inferencia (401): es inválida, está revocada o no permite autenticarse. Guarda una API key válida en Configuración y reinicia el runtime del agente."
+    if http_status in {401, 403}:
+        message = f"Hermes rechazó la autenticación de su API (HTTP {http_status}). Reinicia el runtime del agente para sincronizar su token de acceso."
+    elif data.get("status") == "cancelled":
+        message = "Hermes canceló el turno. Revisa la actividad antes de repetir una acción."
+    elif http_status >= 400:
+        message = f"Hermes devolvió HTTP {http_status}."
+    else:
+        message = "Hermes no pudo completar el turno."
+    if detail:
+        return message + " Causa: " + detail
+    return message + " Hermes no proporcionó detalles del error; revisa los logs locales del runtime."
 
 
 class DockerRuntime:
@@ -155,12 +216,20 @@ class DockerRuntime:
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(600, connect=10), trust_env=False) as client:
                 response = await client.post(url + "/v1/responses", headers=headers, json=payload)
-            if not response.is_success:
-                raise RuntimeUnavailable(f"Hermes devolvió HTTP {response.status_code}. Comprueba credencial, acceso al modelo y estado del proveedor.")
-            data = response.json()
-            if data.get("status") in {"failed", "cancelled"}:
-                raise RuntimeUnavailable("Hermes no completó el turno. Consulta la actividad y vuelve a intentarlo.")
-            answer = "\n".join(c.get("text", "") for item in data.get("output", []) if item.get("type") == "message" for c in item.get("content", []) if c.get("type") == "output_text")
+            try:
+                data = response.json()
+            except ValueError:
+                if response.is_success:
+                    raise
+                data = {}
+            if not isinstance(data, dict):
+                if response.is_success:
+                    raise ValueError("Invalid Hermes response")
+                data = {}
+            if not response.is_success or data.get("status") in {"failed", "cancelled"} or data.get("error"):
+                secrets = (store.api_key(), headers["Authorization"].removeprefix("Bearer "), store.token(agent["id"], "mcp"))
+                raise RuntimeUnavailable(hermes_error(data, response.status_code, secrets))
+            answer = response_text(data)
             if not answer:
                 raise RuntimeUnavailable("Hermes respondió sin un mensaje final; no se ha inventado una respuesta.")
             return answer, data.get("status", "completed")
