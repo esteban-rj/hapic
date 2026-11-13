@@ -28,7 +28,7 @@ def chat(tmp_path, monkeypatch):
     with TestClient(app, base_url="http://localhost") as client:
         client.headers["X-Hapic-CSRF"] = client.get("/api/bootstrap").json()["csrf"]
 
-        def send(response):
+        def send(response, language="es"):
             async def handler(request):
                 if isinstance(response, Exception):
                     raise response
@@ -38,10 +38,26 @@ def chat(tmp_path, monkeypatch):
                 "backend.runtime.httpx.AsyncClient",
                 side_effect=lambda **kwargs: real_async_client(transport=httpx.MockTransport(handler), **kwargs),
             ):
-                return client.post(f"/api/agents/{agent['id']}/chat", json={
+                return client.post(f"/api/agents/{agent['id']}/chat", headers={"Accept-Language": language}, json={
                     "content": "Hola", "request_id": uuid4().hex})
 
         yield send, store, agent
+
+
+@pytest.mark.parametrize("http_status,payload,expected", [
+    (200, {"status": "failed", "error": {"code": "invalid_api_key"}}, "OpenAI rejected the inference API key"),
+    (401, {"error": {"message": "Invalid API key"}}, "Hermes rejected authentication to its API (HTTP 401)"),
+    (429, {"error": {"message": "Quota exceeded"}}, "Hermes returned HTTP 429. Cause: Quota exceeded"),
+    (200, {"status": "cancelled", "error": {"message": "Gateway shutdown"}}, "Hermes canceled the turn."),
+    (200, {"status": "failed"}, "Hermes provided no error details"),
+])
+def test_hermes_failures_follow_the_selected_language(chat, http_status, payload, expected):
+    send, store, agent = chat
+    response = send(httpx.Response(http_status, json=payload), language="en")
+    assert response.status_code == 503
+    assert response.headers["Content-Language"] == "en"
+    assert expected in response.json()["detail"]
+    assert "Causa:" not in response.json()["detail"]
 
 
 @pytest.mark.parametrize("http_status,payload", [

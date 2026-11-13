@@ -1,4 +1,13 @@
 {
+  "OpenAI rechazó la API key de inferencia (401): es inválida, está revocada o no permite autenticarse. Guarda una API key válida en Configuración y reinicia el runtime del agente.": "OpenAI rejected the inference API key (401): it is invalid, revoked, or cannot authenticate. Save a valid API key in Settings and restart the agent runtime.",
+  "Hermes rechazó la autenticación de su API (HTTP {status}). Reinicia el runtime del agente para sincronizar su token de acceso. Causa: {detail}": "Hermes rejected authentication to its API (HTTP {status}). Restart the agent runtime to synchronize its access token. Cause: {detail}",
+  "Hermes rechazó la autenticación de su API (HTTP {status}). Reinicia el runtime del agente para sincronizar su token de acceso. Hermes no proporcionó detalles del error; revisa los logs locales del runtime.": "Hermes rejected authentication to its API (HTTP {status}). Restart the agent runtime to synchronize its access token. Hermes provided no error details; check the local runtime logs.",
+  "Hermes canceló el turno. Revisa la actividad antes de repetir una acción. Causa: {detail}": "Hermes canceled the turn. Check the activity before repeating an action. Cause: {detail}",
+  "Hermes canceló el turno. Revisa la actividad antes de repetir una acción. Hermes no proporcionó detalles del error; revisa los logs locales del runtime.": "Hermes canceled the turn. Check the activity before repeating an action. Hermes provided no error details; check the local runtime logs.",
+  "Hermes devolvió HTTP {status}. Causa: {detail}": "Hermes returned HTTP {status}. Cause: {detail}",
+  "Hermes devolvió HTTP {status}. Hermes no proporcionó detalles del error; revisa los logs locales del runtime.": "Hermes returned HTTP {status}. Hermes provided no error details; check the local runtime logs.",
+  "Hermes no pudo completar el turno. Causa: {detail}": "Hermes could not complete the turn. Cause: {detail}",
+  "Hermes no pudo completar el turno. Hermes no proporcionó detalles del error; revisa los logs locales del runtime.": "Hermes could not complete the turn. Hermes provided no error details; check the local runtime logs.",
   "El agente está fuera del proyecto autorizado.": "The agent is outside the authorized project.",
   "El archivo está fuera del alcance de este agente.": "The file is outside this agent’s scope.",
   "Plan compartido": "Shared plan",
