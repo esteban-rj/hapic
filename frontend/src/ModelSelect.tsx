@@ -1,3 +1,4 @@
+import { useI18n } from "./useI18n";
 // OpenAI's text/reasoning catalog: https://developers.openai.com/api/docs/models
 const MODELS = [
   { id: "gpt-6.1-sol", name: "GPT-6.1 Sol" },
@@ -22,6 +23,7 @@ export function ModelSelect({
   disabled?: boolean;
   ariaLabel?: string;
 }) {
+  const { t } = useI18n();
   // Preserve saved custom IDs and snapshots so opening the form never resets them.
   const savedOptions = [...new Set([savedValue, value])].filter(
     (model) => model && !MODELS.some((option) => option.id === model),
@@ -43,7 +45,7 @@ export function ModelSelect({
       ))}
       {savedOptions.map((model) => (
         <option key={model} value={model}>
-          {model} (guardado)
+          {model} {t("(guardado)")}
         </option>
       ))}
     </select>

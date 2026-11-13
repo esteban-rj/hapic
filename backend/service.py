@@ -11,9 +11,10 @@ from pathlib import Path
 from urllib.parse import urlencode
 
 from .images import IMAGE_TYPES, MAX_IMAGE_BYTES, ImageGenerator, atomic_write, image_type
+from .i18n import get_language, language_context, localize_fields, tr
 from .runtime import DockerRuntime, RuntimeUnavailable
-from .storage import ROOT, DEFAULT_MODEL, Store, now, uid
-from .templates import SPECIALISTS, template as load_template
+from .storage import DEFAULT_MODEL, Store, now, uid
+from .templates import SPECIALISTS, template as load_template, template_root
 from .tool_catalog import CATALOG, defaults, effective_tools
 from .youtube import YouTube
 
@@ -132,16 +133,17 @@ class Service:
             self.store.execute("INSERT INTO agent_tools VALUES (?,?,?,1)", (agent["id"], tool_id, connection_id))
         home = self.store.agent_path(agent) / "hermes"
         home.mkdir(parents=True)
-        template = ROOT / "templates" / kind
+        self.store.set_setting("agent-language-" + agent["id"], get_language())
+        template = template_root(kind)
         soul = (template / "SOUL.md").read_text(encoding="utf-8")
         if kind == "ux":
             shutil.copytree(template / "skills", home / "skills")
-            soul += "\n\n## Método de trabajo incluido\n" + (template / "skills/ux-method/SKILL.md").read_text(encoding="utf-8")
-        (home / "SOUL.md").write_text(f"Tu nombre es {name}.\n\n" + soul, encoding="utf-8")
+            soul += tr("\n\n## Método de trabajo incluido\n") + (template / "skills/ux-method/SKILL.md").read_text(encoding="utf-8")
+        (home / "SOUL.md").write_text(tr("Tu nombre es {name}.", name=name) + "\n\n" + soul, encoding="utf-8")
         # Fresh memory only: never copy state.db, USER.md or credentials from another profile.
         (home / "memories").mkdir()
-        (home / "memories/MEMORY.md").write_text("# Memoria del agente\n\nSin recuerdos todavía.\n", encoding="utf-8")
-        (home / "memories/USER.md").write_text("# Contexto compartido\n\nPendiente de conocer al usuario.\n", encoding="utf-8")
+        (home / "memories/MEMORY.md").write_text(tr("# Memoria del agente\n\nSin recuerdos todavía.\n"), encoding="utf-8")
+        (home / "memories/USER.md").write_text(tr("# Contexto compartido\n\nPendiente de conocer al usuario.\n"), encoding="utf-8")
         self.runtime.prepare(agent, self.store)
         self.store.event(agent["id"], "Perfil persistente creado desde una plantilla limpia. Contenedor pendiente de iniciar.")
         return agent
@@ -210,6 +212,15 @@ class Service:
             self.lock(agent_id).release()
 
     def tool(self, agent, name, args):
+        # MCP calls do not carry the browser headers. Use the agent's last language.
+        with language_context(self.store.setting("agent-language-" + agent["id"], "es")):
+            try:
+                result = self._tool(agent, name, args)
+                return localize_fields(result, "message", "note", "external_content")
+            except (ValueError, LookupError, PermissionError, RuntimeUnavailable) as exc:
+                raise type(exc)(tr(str(exc))) from None
+
+    def _tool(self, agent, name, args):
         agent = self.agent(agent["id"])
         project = self.project(agent["project_id"])
         if name not in effective_tools(agent, self.store):

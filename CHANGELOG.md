@@ -2,6 +2,13 @@
 
 Este archivo registra los cambios del proyecto. Las versiones siguen el esquema `MAJOR.MINOR.PATCH`.
 
+## Sin publicar — 2026-11-12
+
+- Soporte de español e inglés en la plataforma, mensajes del sistema y todas las plantillas, incluidas las instrucciones de Hapic y la habilidad UX.
+- Selector de banderas en la barra superior y en Configuración, con detección inicial del idioma del navegador y preferencia persistente entre recargas y pestañas.
+- Nuevas respuestas de agentes en el idioma seleccionado, con conservación de perfiles, historial y archivos existentes; la creación por MCP hereda el idioma del agente.
+- Verificación: 52 pruebas de backend, 5 pruebas de idioma en frontend, build de producción y revisión de interfaz en escritorio y móvil.
+
 ## Sin publicar — 2026-11-06
 
 ### YouTube y herramientas reutilizables

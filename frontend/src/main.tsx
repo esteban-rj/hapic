@@ -1,3 +1,4 @@
+import { useI18n } from "./useI18n";
 import React, { useCallback, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -54,6 +55,8 @@ import {
 import "./style.css";
 import { ModelSelect } from "./ModelSelect";
 import { ToolsPanel } from "./ToolsPanel";
+import { LanguageSelector } from "./LanguageSelector";
+import { getLanguage } from "./i18n";
 
 type Page =
   | "Resumen"
@@ -71,6 +74,7 @@ const nav = [
   { name: "Configuración" as Page, icon: Settings },
 ];
 function App() {
+  const { t, locale, language } = useI18n();
   const [theme, setTheme] = useState(() => document.documentElement.dataset.theme === "dark" ? "dark" : "light");
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -125,10 +129,12 @@ function App() {
   const [effort, setEffort] = useState("xhigh");
   const [key, setKey] = useState("");
   const refresh = useCallback(async () => {
+    const requestedLanguage = language;
     const [s, c] = await Promise.all([
       api<State>("/state"),
       api<Capabilities>("/capabilities"),
     ]);
+    if (requestedLanguage !== getLanguage()) return;
     setState(s);
     setCaps(c);
     setOrgId((id) =>
@@ -136,16 +142,19 @@ function App() {
         ? id
         : s.organizations[0]?.id || "",
     );
-  }, []);
+  }, [language]);
   useEffect(() => {
+    let active = true;
+    setError("");
     bootstrap()
       .then(() =>
         Promise.all([
           refresh(),
-          api<Template[]>("/templates").then(setTemplates),
+          api<Template[]>("/templates").then((items) => { if (active) setTemplates(items); }),
         ]),
       )
-      .catch((e) => setError(e.message));
+      .catch((e) => { if (active) setError(e.message); });
+    return () => { active = false; };
   }, [refresh]);
   useEffect(() => {
     if (!state) return;
@@ -159,12 +168,12 @@ function App() {
         setOrgId(returnedProject.organization_id);
         setProjectId(returnedProject.id);
       }
-      setToast("Canal de YouTube conectado. Ya puedes asignarlo a tus agentes.");
+      setToast(t("Canal de YouTube conectado. Ya puedes asignarlo a tus agentes."));
     } else {
-      setError("No se pudo completar la conexión con Google. Comprueba los usuarios de prueba, concede ambos permisos de lectura y vuelve a conectar el canal.");
+      setError(t("No se pudo completar la conexión con Google. Comprueba los usuarios de prueba, concede ambos permisos de lectura y vuelve a conectar el canal."));
     }
     window.history.replaceState(null, "", window.location.pathname);
-  }, [state]);
+  }, [state, t]);
   useEffect(() => {
     if (state?.settings) {
       setModel(state.settings.model);
@@ -307,7 +316,7 @@ function App() {
       }
       await refresh();
       setModal(null);
-      setToast("Tu espacio está listo.");
+      setToast(t("Tu espacio está listo."));
     });
   }
   async function readFile(n: FileNode) {
@@ -329,7 +338,7 @@ function App() {
       await post("/agents/" + agent.id + "/start");
       setRuntime({ status: "provisioning", ready: false });
       setToast(
-        "Provisión solicitada. El estado se comprobará automáticamente.",
+        t("Provisión solicitada. El estado se comprobará automáticamente."),
       );
       await refresh();
     });
@@ -337,8 +346,8 @@ function App() {
     page === "Agentes" && agent
       ? agent.name
       : page === "Resumen"
-        ? "Tu equipo, ampliado."
-        : page;
+        ? t("Tu equipo, ampliado.")
+        : t(page);
   return (
     <>
       <header className="topbar">
@@ -357,7 +366,7 @@ function App() {
         <div className="org-select">
           <Building2 size={16} />
           <select
-            aria-label="Organización activa"
+            aria-label={t("Organización activa")}
             value={orgId}
             onChange={(e) => {
               if (e.target.value === "__new") newModal("org");
@@ -365,19 +374,19 @@ function App() {
             }}
           >
             {!state?.organizations.length ? (
-              <option value="">Tu organización</option>
+              <option value="">{t("Tu organización")}</option>
             ) : null}
             {state?.organizations.map((o) => (
               <option key={o.id} value={o.id}>
                 {o.name}
               </option>
             ))}
-            <option value="__new">+ Nueva organización</option>
+            <option value="__new">{t("+ Nueva organización")}</option>
           </select>
           <ChevronDown size={13} />
         </div>
         <div className="breadcrumbs">
-          <span>{org?.name || "Espacio local"}</span>
+          <span>{org?.name || t("Espacio local")}</span>
           <ChevronRight size={13} />
           {project ? (
             <>
@@ -387,8 +396,9 @@ function App() {
               <ChevronRight size={13} />
             </>
           ) : null}
-          <strong>{page === "Agentes" && agent ? agent.name : page}</strong>
+          <strong>{page === "Agentes" && agent ? agent.name : t(page)}</strong>
         </div>
+        <LanguageSelector />
         <span className="local-tag">
           <i />
           Local
@@ -397,14 +407,14 @@ function App() {
           type="button"
           className="icon-button theme-toggle"
           onClick={toggleTheme}
-          aria-label="Modo nocturno"
+          aria-label={t("Modo nocturno")}
           aria-pressed={theme === "dark"}
-          title={theme === "dark" ? "Activar modo claro" : "Activar modo nocturno"}
+          title={theme === "dark" ? t("Activar modo claro") : t("Activar modo nocturno")}
         >
           {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
         </button>
-        <div className="avatar" title="Operador local">
-          Tú
+        <div className="avatar" title={t("Operador local")}>
+          {t("Tú")}
         </div>
       </header>
       <aside className="sidebar">
@@ -422,17 +432,17 @@ function App() {
               }}
             >
               <Icon size={18} />
-              {n}
+              {t(n)}
               {n === "Plantillas" ? <span className="nav-count">{templates.length}</span> : null}
             </button>
           ))}
         </nav>
         <div className="sidebar-projects">
           <div className="eyebrow">
-            TU ESPACIO
+            {t("TU ESPACIO")}
             <button
               className="icon-button"
-              aria-label="Nuevo proyecto"
+              aria-label={t("Nuevo proyecto")}
               onClick={() => newModal(org ? "project" : "org")}
             >
               <Plus size={14} />
@@ -471,15 +481,15 @@ function App() {
               </div>
             ))
           ) : (
-            <p className="tiny muted">Tus proyectos aparecerán aquí.</p>
+            <p className="tiny muted">{t("Tus proyectos aparecerán aquí.")}</p>
           )}
         </div>
         <div className="sidebar-footer">
           <div className="storage-line">
             <Database size={15} />
-            <span>Estado persistente</span>
+            <span>{t("Estado persistente")}</span>
           </div>
-          <p>Tu espacio de trabajo, en tu entorno.</p>
+          <p>{t("Tu espacio de trabajo, en tu entorno.")}</p>
           <span className="version">MVP · 0.1</span>
         </div>
       </aside>
@@ -487,32 +497,32 @@ function App() {
         <div className="page-top">
           <div>
             <div className="eyebrow">
-              {org?.name || "BIENVENIDO A HAPIC"}
+              {org?.name || t("BIENVENIDO A HAPIC")}
               {project ? " / " + project.name : ""}
             </div>
             <h1>
               {title}
               {page === "Agentes" && agent ? (
                 <span className="tag">
-                  {agentRoles[agent.kind]}
+                  {t(agentRoles[agent.kind])}
                 </span>
               ) : null}
             </h1>
             <p className="subtitle">
               {page === "Resumen" ? (
-                "Un lugar para tus proyectos. Un equipo para llevarlos más lejos."
+                t("Un lugar para tus proyectos. Un equipo para llevarlos más lejos.")
               ) : page === "Proyectos" ? (
-                "Cada proyecto, con su propio contexto y equipo."
+                t("Cada proyecto, con su propio contexto y equipo.")
               ) : page === "Plantillas" ? (
-                "Un punto de partida claro para cada especialista."
+                t("Un punto de partida claro para cada especialista.")
               ) : page === "Configuración" ? (
-                "Conecta tu entorno y elige cómo trabaja Hapic."
+                t("Conecta tu entorno y elige cómo trabaja Hapic.")
               ) : page === "Herramientas" ? (
-                "Conexiones que amplían lo que puede hacer tu equipo."
+                t("Conexiones que amplían lo que puede hacer tu equipo.")
               ) : agent ? (
                 <Badge status={runtime?.status || agent.status} />
               ) : (
-                "Agentes con memoria, propósito y un espacio propio."
+                t("Agentes con memoria, propósito y un espacio propio.")
               )}
             </p>
           </div>
@@ -523,7 +533,7 @@ function App() {
                 onClick={() => newModal(org ? "project" : "org")}
               >
                 <Plus size={16} />
-                {org ? "Nuevo proyecto" : "Crear mi espacio"}
+                {org ? t("Nuevo proyecto") : t("Crear mi espacio")}
               </button>
             ) : page === "Agentes" && agent ? (
               <button
@@ -536,7 +546,7 @@ function App() {
                 ) : (
                   <Box size={15} />
                 )}
-                {agent.container_id ? "Reiniciar runtime" : "Iniciar runtime"}
+                {agent.container_id ? t("Reiniciar runtime") : t("Iniciar runtime")}
               </button>
             ) : null}
           </div>
@@ -545,7 +555,7 @@ function App() {
           <div className="error-banner" role="alert">
             <span>{error}</span>
             <button
-              aria-label="Cerrar error"
+              aria-label={t("Cerrar error")}
               className="icon-button"
               onClick={() => setError("")}
             >
@@ -556,7 +566,7 @@ function App() {
         {!state ? (
           <div className="loading">
             <LoaderCircle className="spin" size={22} />
-            Cargando tu espacio…
+            {t("Cargando tu espacio…")}
           </div>
         ) : (
           <>
@@ -567,53 +577,52 @@ function App() {
                     <div>
                       <Folder size={19} />
                       <strong>{projects.length}</strong>
-                      <span>Proyectos</span>
+                      <span>{t("Proyectos")}</span>
                     </div>
                     <div>
                       <Sparkles size={19} />
                       <strong>
                         {agents.filter((a) => a.kind !== "hapic").length}
                       </strong>
-                      <span>Especialistas</span>
+                      <span>{t("Especialistas")}</span>
                     </div>
                     <div>
                       <Layers size={19} />
                       <strong>{templates.length}</strong>
-                      <span>Plantillas disponibles</span>
+                      <span>{t("Plantillas disponibles")}</span>
                     </div>
                   </div>
                   {!org ? (
                     <div className="onboarding">
-                      <span className="eyebrow">DE UNA IDEA A UN EQUIPO</span>
+                      <span className="eyebrow">{t("DE UNA IDEA A UN EQUIPO")}</span>
                       <h2>
-                        Todo empieza
+                        {t("Todo empieza")}
                         <br />
-                        con tu espacio.
+                        {t("con tu espacio.")}
                       </h2>
                       <p>
-                        Crea una organización, abre tu primer proyecto y deja
-                        que Hapic te ayude a sumar tu primer especialista.
+                        {t("Crea una organización, abre tu primer proyecto y deja que Hapic te ayude a sumar tu primer especialista.")}
                       </p>
                       <button
                         className="primary"
                         onClick={() => newModal("org")}
                       >
-                        Crear organización <ArrowRight size={16} />
+                        {t("Crear organización")} <ArrowRight size={16} />
                       </button>
                       <div className="onboarding-steps">
                         <span>
                           <Building2 size={15} />
-                          Organización
+                          {t("Organización")}
                         </span>
                         <ChevronRight size={13} />
                         <span>
                           <Folder size={15} />
-                          Proyecto
+                          {t("Proyecto")}
                         </span>
                         <ChevronRight size={13} />
                         <span>
                           <Sparkles size={15} />
-                          Agentes
+                          {t("Agentes")}
                         </span>
                       </div>
                     </div>
@@ -621,14 +630,14 @@ function App() {
                     <>
                       <div className="section-heading">
                         <h2>
-                          Proyectos{" "}
+                          {t("Proyectos")}{" "}
                           <span className="count">{projects.length}</span>
                         </h2>
                         <button
                           className="text-button"
                           onClick={() => setPage("Proyectos")}
                         >
-                          Ver todos <ArrowRight size={14} />
+                          {t("Ver todos")} <ArrowRight size={14} />
                         </button>
                       </div>
                       {projects.length ? (
@@ -649,27 +658,27 @@ function App() {
                       ) : (
                         <Empty
                           icon={<FolderPlus size={25} />}
-                          title="Tu primer proyecto te espera"
+                          title={t("Tu primer proyecto te espera")}
                           action={
                             <button
                               className="secondary"
                               onClick={() => newModal("project")}
                             >
                               <Plus size={15} />
-                              Crear proyecto
+                              {t("Crear proyecto")}
                             </button>
                           }
                         >
-                          Dale un espacio a esa idea que quieres construir.
+                          {t("Dale un espacio a esa idea que quieres construir.")}
                         </Empty>
                       )}
                       <div className="section-heading">
-                        <h2>Agentes</h2>
+                        <h2>{t("Agentes")}</h2>
                         <button
                           className="text-button"
                           onClick={() => setPage("Agentes")}
                         >
-                          Ver todos <ArrowRight size={14} />
+                          {t("Ver todos")} <ArrowRight size={14} />
                         </button>
                       </div>
                       <AgentTable
@@ -688,7 +697,7 @@ function App() {
                         }
                       />
                       Docker{" "}
-                      {caps?.docker.available ? "conectado" : "pendiente"}
+                      {caps?.docker.available ? t("conectado") : t("pendiente")}
                     </span>
                     <span>
                       <span
@@ -698,13 +707,13 @@ function App() {
                         }
                       />
                       OpenAI{" "}
-                      {caps?.openai.configured ? "configurado" : "pendiente"}
+                      {caps?.openai.configured ? t("configurado") : t("pendiente")}
                     </span>
                     <button
                       className="text-button"
                       onClick={() => setPage("Configuración")}
                     >
-                      Configurar <ArrowUpRight size={13} />
+                      {t("Configurar")} <ArrowUpRight size={13} />
                     </button>
                   </div>
                 </div>
@@ -712,20 +721,19 @@ function App() {
                   <div className="card-heading">
                     <Mark small />
                     <strong>Hapic</strong>
-                    <span className="tag">Orquestador</span>
+                    <span className="tag">{t("Orquestador")}</span>
                   </div>
                   <div className="hapic-panel-body">
                     <div className="orb">
                       <Mark />
                     </div>
                     <h2>
-                      Una idea.
+                      {t("Una idea.")}
                       <br />
-                      Muchas posibilidades.
+                      {t("Muchas posibilidades.")}
                     </h2>
                     <p>
-                      Hapic conecta el contexto de tu proyecto con el
-                      especialista que necesitas.
+                      {t("Hapic conecta el contexto de tu proyecto con el especialista que necesitas.")}
                     </p>
                     <button
                       className="primary"
@@ -737,21 +745,21 @@ function App() {
                     >
                       <Sparkles size={16} />
                       {projects.length
-                        ? "Conversar con Hapic"
-                        : "Comenzar con Hapic"}
+                        ? t("Conversar con Hapic")
+                        : t("Comenzar con Hapic")}
                     </button>
                     <div className="panel-features">
                       <span>
                         <Database size={15} />
-                        Memoria entre sesiones
+                        {t("Memoria entre sesiones")}
                       </span>
                       <span>
                         <Folder size={15} />
-                        Archivos persistentes
+                        {t("Archivos persistentes")}
                       </span>
                       <span>
                         <ShieldCheck size={15} />
-                        Contexto por proyecto
+                        {t("Contexto por proyecto")}
                       </span>
                     </div>
                   </div>
@@ -780,25 +788,24 @@ function App() {
                     onClick={() => newModal("project")}
                   >
                     <Plus size={22} />
-                    <span>Nuevo proyecto</span>
+                    <span>{t("Nuevo proyecto")}</span>
                   </button>
                 </div>
               ) : (
                 <Empty
                   icon={<FolderPlus size={28} />}
-                  title="Un espacio para construir"
+                  title={t("Un espacio para construir")}
                   action={
                     <button
                       className="primary"
                       onClick={() => newModal(org ? "project" : "org")}
                     >
-                      Crear {org ? "proyecto" : "organización"}{" "}
+                      {t("Crear")} {org ? t("proyecto") : t("organización")}{" "}
                       <Plus size={15} />
                     </button>
                   }
                 >
-                  Organiza el contexto, los archivos y los agentes de tu próxima
-                  idea.
+                  {t("Organiza el contexto, los archivos y los agentes de tu próxima idea.")}
                 </Empty>
               )
             ) : null}
@@ -807,13 +814,13 @@ function App() {
                 <>
                   <div className="tabs">
                     {(["Conversación", "Archivos", "Actividad"] as const).map(
-                      (t) => (
+                      (tabName) => (
                         <button
-                          key={t}
-                          className={tab === t ? "active" : ""}
-                          onClick={() => setTab(t)}
+                          key={tabName}
+                          className={tab === tabName ? "active" : ""}
+                          onClick={() => setTab(tabName)}
                         >
-                          {t}
+                          {t(tabName)}
                         </button>
                       ),
                     )}
@@ -839,14 +846,14 @@ function App() {
                         ) : (
                           <div className="card compact-card">
                             <Sparkles size={20} />
-                            <h3>Un equipo para tu proyecto</h3>
+                            <h3>{t("Un equipo para tu proyecto")}</h3>
                             <p>
-                              UX, diseño gráfico, arquitectura, código y community management. El community manager prepara contenido para Instagram y YouTube.
+                              {t("UX, diseño gráfico, arquitectura, código y community management. El community manager prepara contenido para Instagram y YouTube.")}
                             </p>
                           </div>
                         )}
-                        {agent.planner_id ? <div className="card compact-card"><h3>Arquitecto vinculado</h3><p>{state.agents.find((a) => a.id === agent.planner_id)?.name}</p><p>Lee su plan publicado antes de escribir código.</p></div> : null}
-                        <button className="secondary" onClick={() => setPage("Plantillas")}><Plus size={15} /> Añadir especialista</button>
+                        {agent.planner_id ? <div className="card compact-card"><h3>{t("Arquitecto vinculado")}</h3><p>{state.agents.find((a) => a.id === agent.planner_id)?.name}</p><p>{t("Lee su plan publicado antes de escribir código.")}</p></div> : null}
+                        <button className="secondary" onClick={() => setPage("Plantillas")}><Plus size={15} /> {t("Añadir especialista")}</button>
                         <RuntimeCard agent={agent} runtime={runtime} />
                       </div>
                     </div>
@@ -855,10 +862,10 @@ function App() {
                       <section className="card file-tree">
                         <div className="card-title">
                           <Folder size={16} />
-                          Estructura real
+                          {t("Estructura real")}
                           <button
                             className="icon-button"
-                            aria-label="Actualizar árbol"
+                            aria-label={t("Actualizar árbol")}
                             onClick={() =>
                               api<FileNode>("/projects/" + projectId + "/tree")
                                 .then(setTree)
@@ -877,33 +884,31 @@ function App() {
                               selected={file?.path}
                             />
                           ) : (
-                            <p className="muted">Leyendo carpetas…</p>
+                            <p className="muted">{t("Leyendo carpetas…")}</p>
                           )}
                         </div>
                         <p className="tree-note">
-                          Los secretos y logs están excluidos. Los archivos de
-                          estado binarios no admiten vista previa.
+                          {t("Los secretos y logs están excluidos. Los archivos de estado binarios no admiten vista previa.")}
                         </p>
                       </section>
                       <section className="card file-preview">
                         <div className="card-title">
                           <FileText size={16} />
-                          {file ? file.path.split("/").pop() : "Vista previa"}
+                          {file ? file.path.split("/").pop() : t("Vista previa")}
                           {file ? (
                             <span className="tiny muted">
-                              {file.size.toLocaleString("es")} bytes
+                              {file.size.toLocaleString(locale)} bytes
                             </span>
                           ) : null}
                         </div>
                         {file ? (
-                          file.media_type === "image" ? <ImagePreview key={file.path} src={imageUrl(projectId, file.path)} alt={file.path.split("/").pop() || "Imagen del proyecto"} download={imageUrl(projectId, file.path, true)} /> : <pre>{file.content}</pre>
+                          file.media_type === "image" ? <ImagePreview key={file.path} src={imageUrl(projectId, file.path)} alt={file.path.split("/").pop() || t("Imagen del proyecto")} download={imageUrl(projectId, file.path, true)} /> : <pre>{file.content}</pre>
                         ) : (
                           <Empty
                             icon={<FileText size={28} />}
-                            title="El contexto toma forma aquí"
+                            title={t("El contexto toma forma aquí")}
                           >
-                            Selecciona un archivo para ver su contenido. Los
-                            entregables aparecerán cuando el agente los guarde.
+                            {t("Selecciona un archivo para ver su contenido. Los entregables aparecerán cuando el agente los guarde.")}
                           </Empty>
                         )}
                       </section>
@@ -913,7 +918,7 @@ function App() {
                     <section className="card activity">
                       <div className="card-title">
                         <Clock3 size={17} />
-                        Actividad del agente
+                        {t("Actividad del agente")}
                       </div>
                       {events.length ? (
                         events.map((event) => (
@@ -923,14 +928,14 @@ function App() {
                               <p>{event.message}</p>
                               <time>
                                 {new Date(event.created_at).toLocaleString(
-                                  "es-CO",
+                                  locale,
                                 )}
                               </time>
                             </div>
                           </div>
                         ))
                       ) : (
-                        <p className="muted">Sin eventos todavía.</p>
+                        <p className="muted">{t("Sin eventos todavía.")}</p>
                       )}
                     </section>
                   )}
@@ -948,33 +953,31 @@ function App() {
                 <div className="template-catalog">{templates.map((item) => <TemplateCard key={item.kind} template={item} onUse={() => setCreateTemplate(item)} />)}</div>
                 <div className="template-explanation">
                   <span className="eyebrow">
-                    UN PUNTO DE PARTIDA, NO UNA COPIA
+                    {t("UN PUNTO DE PARTIDA, NO UNA COPIA")}
                   </span>
                   <h2>
-                    El método se comparte.
+                    {t("El método se comparte.")}
                     <br />
-                    La memoria empieza de cero.
+                    {t("La memoria empieza de cero.")}
                   </h2>
                   <p>
-                    Cada especialista nace con instrucciones revisables,
-                    herramientas acotadas y un perfil Hermes independiente.
+                    {t("Cada especialista nace con instrucciones revisables, herramientas acotadas y un perfil Hermes independiente.")}
                   </p>
                   <div className="line-feature">
                     <ShieldCheck size={19} />
                     <div>
-                      <h4>Alcance explícito</h4>
+                      <h4>{t("Alcance explícito")}</h4>
                       <p>
-                        Lectura y escritura en su workspace del proyecto. Sin
-                        terminal general.
+                        {t("Lectura y escritura en su workspace del proyecto. Sin terminal general.")}
                       </p>
                     </div>
                   </div>
                   <div className="line-feature">
                     <FileText size={19} />
                     <div>
-                      <h4>Resultados que permanecen</h4>
+                      <h4>{t("Resultados que permanecen")}</h4>
                       <p>
-                        Código, planes e imágenes reales, visibles desde el explorador y el chat.
+                        {t("Código, planes e imágenes reales, visibles desde el explorador y el chat.")}
                       </p>
                     </div>
                   </div>
@@ -986,7 +989,7 @@ function App() {
                         : newModal(org ? "project" : "org")
                     }
                   >
-                    Crear con Hapic <ArrowRight size={16} />
+                    {t("Crear con Hapic")} <ArrowRight size={16} />
                   </button>
                 </div>
               </div>
@@ -994,10 +997,17 @@ function App() {
             {page === "Herramientas" ? <ToolsPanel projects={projects} agents={state.agents} selectedProjectId={projectId} onSelectProject={setProjectId} /> : null}
             {page === "Configuración" ? (
               <div className="settings-layout">
+                <section className="card settings-card language-settings">
+                  <div className="card-title">{t("Idioma")}</div>
+                  <div className="settings-body">
+                    <LanguageSelector />
+                    <p className="field-help">{t("El idioma se guarda en este navegador y se aplica a la plataforma, las plantillas y las nuevas respuestas de los agentes.")}</p>
+                  </div>
+                </section>
                 <section className="card settings-card">
                   <div className="card-title">
                     <Sparkles size={17} />
-                    Modelo predeterminado
+                    {t("Modelo predeterminado")}
                   </div>
                   <form
                     onSubmit={(e) => {
@@ -1005,15 +1015,14 @@ function App() {
                       action(async () => {
                         await put("/settings/model", { model, effort });
                         await refresh();
-                        setToast("Preferencias guardadas para agentes nuevos.");
+                        setToast(t("Preferencias guardadas para agentes nuevos."));
                       });
                     }}
                   >
                     <p>
-                      El punto de partida para Hapic y los nuevos agentes.
-                      Puedes cambiarlo en cada conversación.
+                      {t("El punto de partida para Hapic y los nuevos agentes. Puedes cambiarlo en cada conversación.")}
                     </p>
-                    <label htmlFor="default-model">Modelo de OpenAI</label>
+                    <label htmlFor="default-model">{t("Modelo de OpenAI")}</label>
                     <ModelSelect
                       id="default-model"
                       value={model}
@@ -1022,7 +1031,7 @@ function App() {
                       disabled={busy}
                     />
                     <label htmlFor="default-effort">
-                      Esfuerzo de razonamiento
+                      {t("Esfuerzo de razonamiento")}
                     </label>
                     <select
                       id="default-effort"
@@ -1030,12 +1039,11 @@ function App() {
                       onChange={(e) => setEffort(e.target.value)}
                     >
                       {["low", "medium", "high", "xhigh", "max"].map((v) => (
-                        <option key={v}>{v}</option>
+                        <option key={v} value={v}>{t(v)}</option>
                       ))}
                     </select>
                     <p className="field-help">
-                      Se utiliza Responses API. Un esfuerzo mayor puede aumentar
-                      el tiempo de respuesta y el consumo.
+                      {t("Se utiliza Responses API. Un esfuerzo mayor puede aumentar el tiempo de respuesta y el consumo.")}
                     </p>
                     <button className="primary" disabled={busy}>
                       {busy ? (
@@ -1043,14 +1051,14 @@ function App() {
                       ) : (
                         <Check size={15} />
                       )}
-                      Guardar preferencias
+                      {t("Guardar preferencias")}
                     </button>
                   </form>
                 </section>
                 <section className="card settings-card">
                   <div className="card-title">
                     <ShieldCheck size={17} />
-                    Conexión con OpenAI<span className="tag">Servidor</span>
+                    {t("Conexión con OpenAI")}<span className="tag">{t("Servidor")}</span>
                   </div>
                   <form
                     onSubmit={(e) => {
@@ -1061,7 +1069,7 @@ function App() {
                         await put("/settings/openai", { api_key: value });
                         await refresh();
                         setToast(
-                          "API key guardada. Inicia o reinicia los agentes para aplicarla.",
+                          t("API key guardada. Inicia o reinicia los agentes para aplicarla."),
                         );
                       });
                     }}
@@ -1074,13 +1082,11 @@ function App() {
                         }
                       />
                       {caps?.openai.configured
-                        ? "Credencial configurada"
-                        : "API key pendiente"}
+                        ? t("Credencial configurada")
+                        : t("API key pendiente")}
                     </div>
                     <p>
-                      La clave se cifra en el servidor y nunca se devuelve al
-                      navegador. El estado se guarda localmente; las consultas y
-                      su contexto se envían a OpenAI.
+                      {t("La clave se cifra en el servidor y nunca se devuelve al navegador. El estado se guarda localmente; las consultas y su contexto se envían a OpenAI.")}
                     </p>
                     <label htmlFor="openai-key">API key</label>
                     <input
@@ -1092,7 +1098,7 @@ function App() {
                       onChange={(e) => setKey(e.target.value)}
                       placeholder={
                         caps?.openai.configured
-                          ? "Introduce una nueva clave para reemplazarla"
+                          ? t("Introduce una nueva clave para reemplazarla")
                           : "sk-…"
                       }
                       disabled={caps?.openai.source === "environment"}
@@ -1101,8 +1107,8 @@ function App() {
                     />
                     <p className="field-help">
                       {caps?.openai.source === "environment"
-                        ? "Administrada por la variable del servidor OPENAI_API_KEY."
-                        : "No la pegues en una conversación. Usa solo este formulario local."}
+                        ? t("Administrada por la variable del servidor OPENAI_API_KEY.")
+                        : t("No la pegues en una conversación. Usa solo este formulario local.")}
                     </p>
                     <div className="button-row">
                       <button
@@ -1111,7 +1117,7 @@ function App() {
                           busy || !key || caps?.openai.source === "environment"
                         }
                       >
-                        Guardar credencial
+                        {t("Guardar credencial")}
                       </button>
                       {caps?.openai.configured &&
                       caps.openai.source !== "environment" ? (
@@ -1125,12 +1131,12 @@ function App() {
                               });
                               await refresh();
                               setToast(
-                                "Credencial eliminada del servidor. Los contenedores existentes conservan su entorno hasta reiniciarlos.",
+                                t("Credencial eliminada del servidor. Los contenedores existentes conservan su entorno hasta reiniciarlos."),
                               );
                             })
                           }
                         >
-                          Eliminar
+                          {t("Eliminar")}
                         </button>
                       ) : null}
                     </div>
@@ -1139,10 +1145,10 @@ function App() {
                 <section className="card settings-card docker-card">
                   <div className="card-title">
                     <Box size={17} />
-                    Runtime Docker
+                    {t("Runtime Docker")}
                     <button
                       className="icon-button"
-                      aria-label="Comprobar Docker"
+                      aria-label={t("Comprobar Docker")}
                       onClick={() => action(refresh)}
                     >
                       <RefreshCw size={15} />
@@ -1157,25 +1163,20 @@ function App() {
                         }
                       />
                       {caps?.docker.available
-                        ? "Motor conectado"
-                        : "Motor no disponible"}
+                        ? t("Motor conectado")
+                        : t("Motor no disponible")}
                     </div>
                     <p>{caps?.docker.message}</p>
                     <code>{caps?.docker.image}</code>
                     <p className="field-help">
-                      Con Docker disponible y la credencial configurada, abre un
-                      agente y pulsa Iniciar runtime. No se ha instalado
-                      software del sistema automáticamente.
+                      {t("Con Docker disponible y la credencial configurada, abre un agente y pulsa Iniciar runtime. No se ha instalado software del sistema automáticamente.")}
                     </p>
                   </div>
                 </section>
                 <div className="local-info">
                   <ShieldCheck size={18} />
                   <p>
-                    <strong>Un MVP para uso local.</strong> Un operador
-                    administra sus organizaciones y proyectos. El acceso
-                    compartido y los roles empresariales quedan para una fase
-                    posterior.
+                    <strong>{t("Un MVP para uso local.")}</strong> {t("Un operador administra sus organizaciones y proyectos. El acceso compartido y los roles empresariales quedan para una fase posterior.")}
                   </p>
                 </div>
               </div>
@@ -1187,42 +1188,42 @@ function App() {
             <Mark small />
             Hapic
           </span>
-          <span>El contexto permanece. El trabajo avanza.</span>
+          <span>{t("El contexto permanece. El trabajo avanza.")}</span>
           <span>Local · MVP</span>
         </footer>
       </main>
       {toast ? (
         <div className="toast" role="status">
           <Check size={16} />
-          {toast}
+          {t(toast)}
         </div>
       ) : null}
-      {createTemplate ? <CreateAgentModal template={createTemplate} projects={projects} agents={state?.agents || []} initialProjectId={projectId} close={() => setCreateTemplate(undefined)} created={async (created) => { await refresh(); setCreateTemplate(undefined); openAgent(created); setToast("Perfil creado. Consulta el estado real del runtime."); }} /> : null}
+      {createTemplate ? <CreateAgentModal template={templates.find((item) => item.kind === createTemplate.kind) || createTemplate} projects={projects} agents={state?.agents || []} initialProjectId={projectId} close={() => setCreateTemplate(undefined)} created={async (created) => { await refresh(); setCreateTemplate(undefined); openAgent(created); setToast(t("Perfil creado. Consulta el estado real del runtime.")); }} /> : null}
       {modal ? (
         <Modal
           title={
-            modal === "org" ? "Crea tu espacio de trabajo" : "Un nuevo proyecto"
+            modal === "org" ? t("Crea tu espacio de trabajo") : t("Un nuevo proyecto")
           }
           close={() => setModal(null)}
         >
           <form onSubmit={create}>
             <p className="muted">
               {modal === "org"
-                ? "Una organización reúne tus proyectos y sus agentes."
-                : "Hapic tendrá un perfil propio dentro de este proyecto."}
+                ? t("Una organización reúne tus proyectos y sus agentes.")
+                : t("Hapic tendrá un perfil propio dentro de este proyecto.")}
             </p>
             <label htmlFor="new-name">
               {modal === "org"
-                ? "Nombre de la organización"
-                : "Nombre del proyecto"}
+                ? t("Nombre de la organización")
+                : t("Nombre del proyecto")}
             </label>
             <input
               autoFocus
               id="new-name"
               placeholder={
                 modal === "org"
-                  ? "Por ejemplo, Estudio Norte"
-                  : "Por ejemplo, Mi nuevo producto"
+                  ? t("Por ejemplo, Estudio Norte")
+                  : t("Por ejemplo, Mi nuevo producto")
               }
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -1232,11 +1233,11 @@ function App() {
             {modal === "org" ? (
               <>
                 <label htmlFor="first-project">
-                  Primer proyecto <span className="muted">(opcional)</span>
+                  {t("Primer proyecto")} <span className="muted">{t("(opcional)")}</span>
                 </label>
                 <input
                   id="first-project"
-                  placeholder="Por ejemplo, Sitio web"
+                  placeholder={t("Por ejemplo, Sitio web")}
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
                   maxLength={80}
@@ -1246,11 +1247,11 @@ function App() {
             <div className="folder-preview">
               <Folder size={17} />
               <span>
-                {modal === "org" ? name || "tu-organización" : org?.name}
+                {modal === "org" ? name || t("tu-organización") : org?.name}
                 <ChevronRight size={13} />
                 {modal === "org"
-                  ? projectName || "proyectos"
-                  : name || "tu-proyecto"}
+                  ? projectName || t("proyectos")
+                  : name || t("tu-proyecto")}
                 {modal !== "org" || projectName ? (
                   <>
                     <ChevronRight size={13} />
@@ -1261,8 +1262,7 @@ function App() {
               </span>
             </div>
             <p className="field-help">
-              Se crearán metadatos y carpetas reales. La conexión de IA se
-              configura después.
+              {t("Se crearán metadatos y carpetas reales. La conexión de IA se configura después.")}
             </p>
             {error ? (
               <p className="inline-error" role="alert">
@@ -1275,11 +1275,11 @@ function App() {
                 type="button"
                 onClick={() => setModal(null)}
               >
-                Cancelar
+                {t("Cancelar")}
               </button>
               <button className="primary" disabled={busy || !name.trim()}>
-                {busy ? <LoaderCircle className="spin" size={15} /> : null}Crear{" "}
-                {modal === "org" ? "espacio" : "proyecto"}
+                {busy ? <LoaderCircle className="spin" size={15} /> : null}{t("Crear")}{" "}
+                {modal === "org" ? t("espacio") : t("proyecto")}
                 <ArrowRight size={15} />
               </button>
             </div>
@@ -1298,6 +1298,7 @@ function ProjectCard({
   count: number;
   click: () => void;
 }) {
+  const { t, locale } = useI18n();
   return (
     <button className="card project-card" onClick={click}>
       <div className="project-card-top">
@@ -1308,12 +1309,12 @@ function ProjectCard({
       </div>
       <h3>{project.name}</h3>
       <p>
-        {count} {count === 1 ? "agente" : "agentes"} en este proyecto
+        {t(count === 1 ? "{count} agente en este proyecto" : "{count} agentes en este proyecto", { count: count.toLocaleString(locale) })}
       </p>
       <div className="project-card-footer">
         <code>{project.id.slice(0, 13)}</code>
         <span>
-          {new Date(project.created_at).toLocaleDateString("es-CO", {
+          {new Date(project.created_at).toLocaleDateString(locale, {
             day: "numeric",
             month: "short",
           })}
@@ -1331,17 +1332,18 @@ function AgentTable({
   projects: Project[];
   open: (a: Agent) => void;
 }) {
+  const { t } = useI18n();
   return agents.length ? (
     <div className="card table-scroll">
       <table>
         <thead>
           <tr>
-            <th>Agente</th>
-            <th>Proyecto</th>
-            <th>Modelo</th>
-            <th>Estado registrado</th>
+            <th>{t("Agente")}</th>
+            <th>{t("Proyecto")}</th>
+            <th>{t("Modelo")}</th>
+            <th>{t("Estado registrado")}</th>
             <th>
-              <span className="sr-only">Abrir</span>
+              <span className="sr-only">{t("Abrir")}</span>
             </th>
           </tr>
         </thead>
@@ -1362,7 +1364,7 @@ function AgentTable({
                   <span>
                     <strong>{a.name}</strong>
                     <small>
-                      {agentRoles[a.kind]}
+                      {t(agentRoles[a.kind])}
                     </small>
                   </span>
                 </button>
@@ -1384,40 +1386,40 @@ function AgentTable({
       </table>
     </div>
   ) : (
-    <Empty icon={<Sparkles size={27} />} title="Tu equipo empieza con Hapic">
-      Crea un proyecto para preparar tu orquestador y sumar especialistas.
+    <Empty icon={<Sparkles size={27} />} title={t("Tu equipo empieza con Hapic")}>
+      {t("Crea un proyecto para preparar tu orquestador y sumar especialistas.")}
     </Empty>
   );
 }
 function RuntimeCard({ agent, runtime }: { agent: Agent; runtime: any }) {
+  const { t } = useI18n();
   return (
     <section className="card runtime-card">
       <div className="card-title">
         <Box size={17} />
-        Runtime real
+        {t("Runtime real")}
       </div>
       <div className="runtime-body">
         <Badge status={runtime?.status || agent.status} />
         <div>
-          <span className="muted tiny">CONTENEDOR</span>
-          <code>{runtime?.container || "Sin contenedor comprobado"}</code>
+          <span className="muted tiny">{t("CONTENEDOR")}</span>
+          <code>{runtime?.container || t("Sin contenedor comprobado")}</code>
         </div>
         <div>
-          <span className="muted tiny">MODELO / RAZONAMIENTO</span>
+          <span className="muted tiny">{t("MODELO / RAZONAMIENTO")}</span>
           <code>{agent.model}</code>
           <span className="tag">{agent.effort}</span>
         </div>
         <div>
-          <span className="muted tiny">ALMACENAMIENTO</span>
+          <span className="muted tiny">{t("ALMACENAMIENTO")}</span>
           <span className="storage-line">
             <Database size={15} />
-            Perfil y workspace persistentes
+            {t("Perfil y workspace persistentes")}
           </span>
         </div>
         {agent.error ? <p className="runtime-error">{agent.error}</p> : null}
         <p className="tiny muted">
-          El estado de la API se comprueba cada 6 segundos. Una API disponible
-          no verifica el acceso al modelo hasta el primer turno.
+          {t("El estado de la API se comprueba cada 6 segundos. Una API disponible no verifica el acceso al modelo hasta el primer turno.")}
         </p>
       </div>
     </section>

@@ -1,3 +1,5 @@
+import { getLanguage, translate } from "./i18n";
+
 let csrf = "";
 export async function api<T = any>(
   path: string,
@@ -8,6 +10,7 @@ export async function api<T = any>(
     headers: {
       "Content-Type": "application/json",
       "X-Hapic-CSRF": csrf,
+      "Accept-Language": getLanguage(),
       ...options.headers,
     },
   });
@@ -16,7 +19,7 @@ export async function api<T = any>(
     throw new Error(
       typeof data.detail === "string"
         ? data.detail
-        : "No se pudo completar la solicitud. Revisa los campos.",
+        : translate("No se pudo completar la solicitud. Revisa los campos."),
     );
   return data;
 }
