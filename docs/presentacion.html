@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#f5f5ef" />
     <title>Hapic · Tu idea ya tiene equipo</title>
     <meta name="description" content="Descubre Hapic: proyectos con contexto, especialistas de IA, memoria y archivos persistentes, y herramientas para tu equipo." />
-    <script src="theme.js?v=20261112-en"></script>
+    <script src="theme.js?v=20261112-chat"></script>
     <style>
       :root { color-scheme: light; --ink: #17231e; --muted: #58645e; --paper: #f5f5ef; --line: #d9dfd8; --mint: #dce9dc; }
       * { box-sizing: border-box; }
@@ -40,7 +40,7 @@
       .connection-list small { color: var(--muted); font-size: 11px; }
       .screen-area { position: relative; min-width: 0; margin: 0; padding: 25px; background: #e5eadd; border-radius: 18px; }
       .screen-note { margin: 13px 0 0; color: #556650; font-size: 10px; line-height: 1.5; text-align: center; }
-      .tour-nav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+      .tour-nav { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
       .tour-nav button { display: flex; align-items: flex-start; gap: 14px; min-width: 0; padding: 22px 12px; border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--muted); text-align: left; }
       .tour-nav button:last-child { border-right: 0; }
       .tour-nav button[aria-pressed="true"] { background: var(--mint); color: var(--ink); }
@@ -80,7 +80,6 @@
         .tour-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .tour-nav button:nth-child(even) { border-right: 0; }
         .tour-nav button:nth-child(-n+4) { border-bottom: 1px solid var(--line); }
-        .tour-nav button:last-child { grid-column: 1 / -1; }
         .closing { align-items: flex-start; flex-direction: column; gap: 16px; }
         .step-copy strong { font-size: 12px; }
         .docs-link { font-size: 11px; }
@@ -97,7 +96,7 @@
         .tour-nav button { transition: background .16s ease, color .16s ease; }
       }
     </style>
-    <link rel="stylesheet" href="demo.css?v=20261112-en" />
+    <link rel="stylesheet" href="demo.css?v=20261112-chat" />
   </head>
   <body>
     <div class="shell">
@@ -120,9 +119,20 @@
           </figure>
         </section>
 
+        <section class="scene" id="scene-conversacion" aria-labelledby="title-conversacion" hidden>
+          <div class="scene-copy">
+            <span class="scene-number" data-en="02 / FROM REQUEST TO RESULT">02 / DE LA IDEA AL RESULTADO</span>
+            <h2 id="title-conversacion" data-en="A conversation.&lt;br /&gt;Work that moves forward.">Una conversación.<br />Trabajo que avanza.</h2>
+            <p class="scene-lead" data-en="Give your specialist a goal. Watch how they use project context, prepare a proposal and leave a deliverable for you to review.">Dale un objetivo a tu especialista. Mira cómo usa el contexto del proyecto, prepara una propuesta y deja un entregable para que lo revises.</p>
+            <ul class="benefits"><li data-en="Project context">Contexto del proyecto</li><li data-en="Visible activity">Actividad visible</li><li data-en="Deliverables for review">Entregables para revisar</li></ul>
+            <p class="capability" data-en="Illustrative conversation with sample data. No AI calls or service connections.">Conversación ilustrativa con datos de ejemplo. Sin llamadas a IA ni conexiones a servicios.</p>
+          </div>
+          <figure class="screen-area"><figcaption class="screen-note" data-en="From a request to a sample editorial calendar.">De una solicitud a un calendario editorial de ejemplo.</figcaption></figure>
+        </section>
+
         <section class="scene" id="scene-estructura" aria-labelledby="title-estructura" hidden>
           <div class="scene-copy">
-            <span class="scene-number" data-en="02 / A PLACE FOR EVERYTHING">02 / UN LUGAR PARA CADA COSA</span>
+            <span class="scene-number" data-en="03 / A PLACE FOR EVERYTHING">03 / UN LUGAR PARA CADA COSA</span>
             <h2 id="title-estructura" data-en="From the project&lt;br /&gt;to every file.">Del proyecto<br />a cada archivo.</h2>
             <p class="scene-lead" data-en="Group projects by organization. Each project brings its agents together, and each agent keeps its own profile, memory and workspace folders.">Agrupa tus proyectos por organización. Cada proyecto reúne a sus agentes, y cada agente conserva su perfil, memoria y carpetas de trabajo.</p>
             <ul class="benefits"><li data-en="Organizations">Organizaciones</li><li data-en="Projects">Proyectos</li><li data-en="Agents">Agentes</li><li data-en="Folders and files">Carpetas y archivos</li></ul>
@@ -134,7 +144,7 @@
 
         <section class="scene" id="scene-plantillas" aria-labelledby="title-plantillas" hidden>
           <div class="scene-copy">
-            <span class="scene-number" data-en="03 / YOUR TEAM OF SPECIALISTS">03 / TU EQUIPO DE ESPECIALISTAS</span>
+            <span class="scene-number" data-en="04 / YOUR TEAM OF SPECIALISTS">04 / TU EQUIPO DE ESPECIALISTAS</span>
             <h2 id="title-plantillas" data-en="Your team,&lt;br /&gt;your way.">Tu equipo,<br />a tu medida.</h2>
             <p class="scene-lead" data-en="Start with profiles ready to design, plan, write code and develop your content. Each agent has its own memory and workspace.">Empieza con perfiles preparados para diseñar, planificar, escribir código y trabajar tu contenido. Cada agente tiene su propia memoria y espacio de trabajo.</p>
             <ul class="benefits"><li>UX</li><li data-en="Graphic design">Diseño gráfico</li><li data-en="Architecture">Arquitectura</li><li data-en="Code">Código</li><li>Community Manager</li></ul>
@@ -147,7 +157,7 @@
 
         <section class="scene" id="scene-archivos" aria-labelledby="title-archivos" hidden>
           <div class="scene-copy">
-            <span class="scene-number" data-en="04 / RESULTS THAT LAST">04 / RESULTADOS QUE PERMANECEN</span>
+            <span class="scene-number" data-en="05 / RESULTS THAT LAST">05 / RESULTADOS QUE PERMANECEN</span>
             <h2 id="title-archivos" data-en="Work takes&lt;br /&gt;shape in files.">El trabajo toma<br />forma en archivos.</h2>
             <p class="scene-lead" data-en="Organize briefs, plans, code, images and calendars in each agent’s workspace. Open deliverables from the same project.">Organiza briefs, planes, código, imágenes y calendarios en el espacio de cada agente. Abre los entregables desde el mismo proyecto.</p>
             <ul class="benefits"><li data-en="Persistent files">Archivos persistentes</li><li data-en="Preview">Vista previa</li><li data-en="Project context">Contexto por proyecto</li></ul>
@@ -159,7 +169,7 @@
 
         <section class="scene" id="scene-herramientas" aria-labelledby="title-herramientas" hidden>
           <div class="scene-copy">
-            <span class="scene-number" data-en="05 / TOOLS FOR YOUR TEAM">05 / HERRAMIENTAS PARA TU EQUIPO</span>
+            <span class="scene-number" data-en="06 / TOOLS FOR YOUR TEAM">06 / HERRAMIENTAS PARA TU EQUIPO</span>
             <h2 id="title-herramientas" data-en="Your tools.&lt;br /&gt;More possibilities.">Tus herramientas.<br />Más posibilidades.</h2>
             <p class="scene-lead" data-en="Hapic’s vision is for any agent to use connections suited to its work. YouTube is the first connector; the catalog may grow with HeyGen, ElevenLabs and other services.">La visión de Hapic es que cualquier agente incorpore conexiones según su trabajo. YouTube es el primer conector; el catálogo podrá crecer con HeyGen, ElevenLabs y otros servicios.</p>
             <ul class="connection-list"><li><strong>YouTube</strong><small data-en="Available · Read-only">Disponible · Solo lectura</small></li><li><strong>HeyGen</strong><small data-en="Planned integration">Integración prevista</small></li><li><strong>ElevenLabs</strong><small data-en="Planned integration">Integración prevista</small></li></ul>
@@ -171,18 +181,19 @@
 
         <nav class="tour-nav" aria-label="Recorrido por Hapic">
           <button type="button" data-scene="resumen" aria-controls="scene-resumen" aria-pressed="true"><span class="step-number">01</span><span class="step-copy"><strong data-en="Your projects">Tus proyectos</strong><small data-en="Everything in perspective">Todo en perspectiva</small></span></button>
-          <button type="button" data-scene="estructura" aria-controls="scene-estructura" aria-pressed="false"><span class="step-number">02</span><span class="step-copy"><strong data-en="Your structure">Tu estructura</strong><small data-en="From project to file">Del proyecto a cada archivo</small></span></button>
-          <button type="button" data-scene="plantillas" aria-controls="scene-plantillas" aria-pressed="false"><span class="step-number">03</span><span class="step-copy"><strong data-en="Your team">Tu equipo</strong><small data-en="Specialists for your needs">Especialistas a tu medida</small></span></button>
-          <button type="button" data-scene="archivos" aria-controls="scene-archivos" aria-pressed="false"><span class="step-number">04</span><span class="step-copy"><strong data-en="Your files">Tus archivos</strong><small data-en="Results that last">Resultados que permanecen</small></span></button>
-          <button type="button" data-scene="herramientas" aria-controls="scene-herramientas" aria-pressed="false"><span class="step-number">05</span><span class="step-copy"><strong data-en="Your tools">Tus herramientas</strong><small data-en="More connections to come">Conexiones que crecerán</small></span></button>
+          <button type="button" data-scene="conversacion" aria-controls="scene-conversacion" aria-pressed="false"><span class="step-number">02</span><span class="step-copy"><strong data-en="Your agent at work">Tu agente en acción</strong><small data-en="From request to result">De la idea al resultado</small></span></button>
+          <button type="button" data-scene="estructura" aria-controls="scene-estructura" aria-pressed="false"><span class="step-number">03</span><span class="step-copy"><strong data-en="Your structure">Tu estructura</strong><small data-en="From project to file">Del proyecto a cada archivo</small></span></button>
+          <button type="button" data-scene="plantillas" aria-controls="scene-plantillas" aria-pressed="false"><span class="step-number">04</span><span class="step-copy"><strong data-en="Your team">Tu equipo</strong><small data-en="Specialists for your needs">Especialistas a tu medida</small></span></button>
+          <button type="button" data-scene="archivos" aria-controls="scene-archivos" aria-pressed="false"><span class="step-number">05</span><span class="step-copy"><strong data-en="Your files">Tus archivos</strong><small data-en="Results that last">Resultados que permanecen</small></span></button>
+          <button type="button" data-scene="herramientas" aria-controls="scene-herramientas" aria-pressed="false"><span class="step-number">06</span><span class="step-copy"><strong data-en="Your tools">Tus herramientas</strong><small data-en="More connections to come">Conexiones que crecerán</small></span></button>
         </nav>
         <p id="tour-status" class="sr-only" aria-live="polite">Mostrando Tus proyectos.</p>
         <div class="closing"><p><strong data-en="Your next idea already has a team.">Tu siguiente idea ya tiene equipo.</strong><br /><span data-en="Create a project, prepare your specialists and start working with Hapic.">Crea un proyecto, prepara tus especialistas y empieza a trabajar con Hapic.</span></p><a class="start-link" href="https://github.com/esteban-rj/hapic#recorrido" data-en="Get started with Hapic ↗">Cómo empezar con Hapic ↗</a></div>
       </main>
       <footer><p class="footnote" data-en="Illustrative interactive Hapic demo, with no service connections or AI generation. Conversations and image generation require an OpenAI API key and the corresponding services; the agent runtime uses Docker.">Demo interactiva ilustrativa de Hapic, sin conexión a servicios ni generación de IA. La conversación y la generación de imágenes requieren una API key de OpenAI y los servicios correspondientes; el runtime de los agentes utiliza Docker.</p></footer>
     </div>
-    <script src="language.js?v=20261112-en"></script>
-    <script src="demo.js?v=20261112-en"></script>
+    <script src="language.js?v=20261112-chat"></script>
+    <script src="demo.js?v=20261112-chat"></script>
     <script>
       (() => {
         const buttons = Array.from(document.querySelectorAll('[data-scene]'));
