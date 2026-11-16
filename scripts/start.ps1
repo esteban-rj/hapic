@@ -1,5 +1,7 @@
 param([int]$Port = 8000)
 $ErrorActionPreference = 'Stop'
+if ($Port -ne 8000) { throw 'Hapic utiliza siempre el puerto 8000. Libera ese puerto antes de iniciar.' }
+$env:HAPIC_MCP_URL = 'http://host.docker.internal:8000/mcp/'
 $taskRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $taskRoot
 $taskPython = Join-Path $taskRoot '.venv\Scripts\python.exe'

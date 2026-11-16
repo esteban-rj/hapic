@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ejecutar Hapic"
+  short_description: "Inicia Hapic en 8000 y actualiza runtimes necesarios"
+  default_prompt: "Usa $hapic-execution para ejecutar esta versión de Hapic en el puerto 8000 y conciliar solo los contenedores afectados."

@@ -21,6 +21,8 @@
   let playing = !reduced.matches;
   let timer;
   let chatStage = reduced.matches ? 4 : 0;
+  let preparationStage = 4;
+  let selectedPreparation;
   const demo = document.createElement('div');
   demo.className = 'demo';
   demo.innerHTML = '<div class="demo-top"><strong>H / Hapic</strong><small>DEMO ILUSTRATIVA · SIN SERVICIOS</small></div><div class="demo-layout"><nav class="demo-sidebar" aria-label="Plataforma de demostración"></nav><div class="demo-content"></div></div><div class="demo-progress" aria-hidden="true"><span></span></div>';
@@ -84,6 +86,45 @@
     const note = document.createElement('p'); note.className = 'demo-chat-note'; note.textContent = copy.note;
     body.append(replay, note);
   }
+  function renderPreparation(body) {
+    const en = isEnglish();
+    const names = en ? ['Profile and memory', 'Requirements', 'Configuration', 'Network', 'Hermes image', 'Container', 'API available'] : ['Perfil y memoria', 'Requisitos', 'Configuración', 'Red', 'Imagen de Hermes', 'Contenedor', 'API disponible'];
+    const logs = en ? ['Profile, initial memory and workspace created.', 'Docker responds and an OpenAI credential is configured.', 'Model, tools and permissions prepared.', 'Docker network available.', 'Downloading the official Hermes image; this may take several minutes.', 'Container created. Waiting for the Hermes API.', 'Hermes responded with status: ok. The agent is available.'] : ['Perfil, memoria inicial y workspace creados.', 'Docker responde y hay una credencial de OpenAI configurada.', 'Modelo, herramientas y permisos preparados.', 'Red Docker disponible.', 'Descargando la imagen oficial de Hermes; puede tardar varios minutos.', 'Contenedor creado. Esperando la API de Hermes.', 'Hermes respondió con status: ok. El agente está disponible.'];
+    const section = document.createElement('section'); section.className = 'demo-preparation';
+    if (preparationStage >= 7) {
+      section.className = 'demo-ready-chat';
+      const heading = document.createElement('h4'); heading.textContent = 'Lucía · UX';
+      const state = document.createElement('p'); state.setAttribute('role', 'status'); state.textContent = en ? 'Ready to receive messages' : 'Lista para recibir mensajes';
+      const message = document.createElement('div'); message.className = 'demo-message'; message.textContent = en ? 'Hi, I’m Lucía. What experience would you like us to design?' : 'Hola, soy Lucía. ¿Qué experiencia quieres que diseñemos?';
+      const input = document.createElement('textarea'); input.disabled = true; input.rows = 2; input.placeholder = en ? 'Write to Lucía…' : 'Escribe a Lucía…'; input.setAttribute('aria-label', en ? 'Sample message for Lucía' : 'Mensaje de ejemplo para Lucía');
+      const replay = document.createElement('button'); replay.type = 'button'; replay.className = 'demo-replay'; replay.textContent = en ? 'Replay preparation' : 'Repetir preparación';
+      replay.addEventListener('click', () => { preparationStage = 4; selectedPreparation = undefined; playing = false; select(active); });
+      const note = document.createElement('p'); note.className = 'demo-chat-note'; note.textContent = en ? 'Illustrative chat. The preparation flow disappears when the agent is ready. No messages are sent.' : 'Chat ilustrativo. El flujo de preparación desaparece cuando el agente está listo. No se envían mensajes.';
+      section.append(heading, state, message, input, replay, note); body.append(section); return;
+    }
+    const heading = document.createElement('h4'); heading.textContent = en ? 'Lucía is getting ready' : 'Lucía se está preparando';
+    const state = document.createElement('p'); state.setAttribute('role', 'status');
+    state.textContent = (preparationStage < 7 ? (en ? 'Preparing' : 'En preparación') : (en ? 'API available' : 'API disponible')) + ' · ' + preparationStage + '/7';
+    const graph = document.createElement('ol'); graph.className = 'demo-preparation-graph'; graph.setAttribute('aria-label', en ? 'Sample preparation stages' : 'Etapas de preparación de ejemplo');
+    const detail = document.createElement('div'); detail.className = 'demo-detail';
+    const selected = selectedPreparation === undefined ? Math.min(preparationStage, 6) : selectedPreparation;
+    names.forEach((name, index) => {
+      const item = document.createElement('li');
+      const button = document.createElement('button'); button.type = 'button';
+      button.className = index < preparationStage ? 'complete' : index === preparationStage ? 'running' : 'pending';
+      button.textContent = (index < preparationStage ? '✓ ' : index === preparationStage ? '◉ ' : '− ') + name;
+      button.setAttribute('aria-pressed', String(index === selected));
+      button.addEventListener('click', () => { selectedPreparation = index; playing = false; select(active); });
+      item.append(button); graph.append(item);
+    });
+    detail.textContent = names[selected] + '\n' + (selected <= preparationStage ? logs[selected] : (en ? 'No logs yet. Waiting for previous stages.' : 'Aún no hay registros. Esperando las etapas anteriores.'));
+    const pending = document.createElement('p'); pending.textContent = (en ? 'Before becoming available: ' : 'Para estar disponible: ') + (names.slice(preparationStage).join(' → ') || (en ? 'all stages complete.' : 'todas las etapas completas.'));
+    const advance = document.createElement('button'); advance.type = 'button'; advance.className = 'demo-replay';
+    advance.textContent = preparationStage < 7 ? (en ? 'Advance sample stage' : 'Avanzar etapa de ejemplo') : (en ? 'Replay preparation' : 'Repetir preparación');
+    advance.addEventListener('click', () => { preparationStage = preparationStage < 7 ? preparationStage + 1 : 4; selectedPreparation = undefined; playing = false; select(active); });
+    const note = document.createElement('p'); note.className = 'demo-chat-note'; note.textContent = en ? 'Illustrative stages and logs. No Docker, credentials or paid calls are used. Real progress refreshes every three seconds.' : 'Etapas y registros ilustrativos. No se usa Docker, credenciales ni llamadas de pago. El progreso real se actualiza cada tres segundos.';
+    section.append(heading, state, graph, detail, pending, advance, note); body.append(section);
+  }
   function schedule() {
     clearTimeout(timer);
     if (!playing || document.hidden) return;
@@ -112,6 +153,7 @@
     const heading = document.createElement('h3'); heading.textContent = title;
     const description = document.createElement('p'); description.textContent = subtitle;
     body.append(heading, description);
+    if (key === 'plantillas') renderPreparation(body);
     cards.forEach(([name, summary, detail]) => {
       const card = document.createElement('button'); card.type = 'button'; card.className = 'demo-card';
       card.textContent = name;

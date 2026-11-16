@@ -4,7 +4,9 @@ Consulta primero el [README](../README.md) para instalar dependencias y arrancar
 
 ## Arranque nativo en macOS y Linux
 
-Con el entorno `.venv` preparado y la interfaz compilada, ejecuta `./scripts/start.sh` (o `./scripts/start.sh 8080`). El lanzador usa el checkout principal de Git, incluso si se invoca desde un worktree temporal, y conserva los datos en su directorio `.hapic`. Así, eliminar un worktree no interrumpe el servidor ni elimina sus datos. `HAPIC_DATA_DIR` y `HAPIC_HOST_DATA_DIR` permiten indicar almacenamiento persistente alternativo; `HAPIC_PYTHON` permite seleccionar otro intérprete.
+Con el entorno `.venv` preparado y la interfaz compilada, ejecuta `./scripts/start.sh`. Hapic utiliza siempre el puerto 8000; los lanzadores rechazan puertos alternativos para mantener la UI, la API y MCP en la misma instancia. El lanzador usa el checkout principal de Git, incluso si se invoca desde un worktree temporal, y conserva los datos en su directorio `.hapic`. Así, eliminar un worktree no interrumpe el servidor ni elimina sus datos. `HAPIC_DATA_DIR` y `HAPIC_HOST_DATA_DIR` permiten indicar almacenamiento persistente alternativo; `HAPIC_PYTHON` permite seleccionar otro intérprete. `HAPIC_APP_DIR` permite elegir explícitamente un checkout distinto cuando sea necesario ejecutar cambios que todavía están en él, conservando el directorio de datos elegido.
+
+La skill del repositorio [`hapic-execution`](../.agents/skills/hapic-execution/SKILL.md) describe el arranque, la identificación de procesos y la conciliación de contenedores. Los cambios exclusivos de UI no recrean Hermes. Las recreaciones comparan la firma `hapic.runtime` (configuración, permisos, credenciales, montajes y red), la imagen y la propiedad mediante `hapic.agent` y `hapic.installation`. Un plan muestra los candidatos antes de aplicar; una instalación anterior solo se retira al indicar su ruta exacta. La limpieza conserva perfiles, memoria, workspaces y volúmenes.
 
 No ejecutes el servidor ni guardes datos de uso habitual dentro de worktrees desechables. Antes de eliminar uno usado previamente, detén su servidor y sus agentes y respalda `.hapic` completo, incluidos los secretos. El arranque no recupera datos de carpetas ya eliminadas.
 
@@ -83,6 +85,8 @@ Antes de cambiar la imagen, realiza una copia coherente de los datos. Reconstruy
 Las dependencias de la interfaz se fijan en `frontend/pnpm-lock.yaml`; las de Python, en `requirements.lock`. Si se actualizan, usa un entorno virtual limpio, ejecuta los checks y regenera el lock de Python con `scripts/freeze.py` cuando sea necesario.
 
 ## Diagnóstico
+
+Si el chat afirma que no dispone de herramientas, comprueba primero que su `mcp_servers.hapic.url` apunte al control de gestión de esta instalación y que su token sea aceptado. Un MCP dirigido a otra ejecución puede devolver 401 aunque Hermes esté saludable. El lanzador nativo fija `http://host.docker.internal:8000/mcp/`; Compose usa `http://hapic:8000/mcp/`.
 
 Para aplicar herramientas nuevas a un agente existente, recréalo con **Reiniciar runtime** después de actualizar el control de gestión. Conserva su memoria, historial y workspace.
 

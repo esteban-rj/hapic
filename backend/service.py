@@ -15,6 +15,7 @@ from urllib.parse import urlencode
 from .images import IMAGE_TYPES, MAX_IMAGE_BYTES, ImageGenerator, atomic_write, image_type
 from .i18n import get_language, language_context, localize_fields, tr
 from .runtime import DockerRuntime, RuntimeUnavailable
+from .preparation import Preparation, FAILED
 from .storage import ROOT, DEFAULT_MODEL, Store, now, uid
 from .templates import agent_instructions, project_roster, SPECIALISTS, template as load_template, template_root
 from .tool_catalog import CATALOG, defaults, effective_tools
@@ -128,25 +129,34 @@ class Service:
             self.store.execute("INSERT INTO agents(id,organization_id,project_id,name,kind,template,model,effort,status,container_id,error,created_at,planner_id) VALUES (:id,:organization_id,:project_id,:name,:kind,:template,:model,:effort,:status,:container_id,:error,:created_at,:planner_id)", agent)
         except sqlite3.IntegrityError:
             raise ValueError("Ya existe un agente con ese nombre en el proyecto.") from None
-        for tool_id in defaults(kind):
-            connections = self.youtube.connections(project_id)
-            selected = [c for c in connections if c["status"] == "connected"]
-            connection_id = selected[0]["id"] if len(selected) == 1 else None
-            self.store.execute("INSERT INTO agent_tools VALUES (?,?,?,1)", (agent["id"], tool_id, connection_id))
-        home = self.store.agent_path(agent) / "hermes"
-        home.mkdir(parents=True)
-        self.store.set_setting("agent-language-" + agent["id"], get_language())
-        template = template_root(kind)
-        soul = agent_instructions(kind)
-        if kind == "ux":
-            shutil.copytree(template / "skills", home / "skills")
-            soul += tr("\n\n## Método de trabajo incluido\n") + (template / "skills/ux-method/SKILL.md").read_text(encoding="utf-8")
-        (home / "SOUL.md").write_text(tr("Tu nombre es {name}.", name=name) + "\n\n" + soul, encoding="utf-8")
-        # Fresh memory only: never copy state.db, USER.md or credentials from another profile.
-        (home / "memories").mkdir()
-        (home / "memories/MEMORY.md").write_text(tr("# Memoria del agente\n\nSin recuerdos todavía.\n"), encoding="utf-8")
-        (home / "memories/USER.md").write_text(tr("# Contexto compartido\n\nPendiente de conocer al usuario.\n"), encoding="utf-8")
-        self.runtime.prepare(agent, self.store)
+        preparation = Preparation.create(self.store, agent["id"])
+        preparation.start("profile", "Creando un perfil limpio con memoria y archivos independientes.")
+        try:
+            for tool_id in defaults(kind):
+                connections = self.youtube.connections(project_id)
+                selected = [c for c in connections if c["status"] == "connected"]
+                connection_id = selected[0]["id"] if len(selected) == 1 else None
+                self.store.execute("INSERT INTO agent_tools VALUES (?,?,?,1)", (agent["id"], tool_id, connection_id))
+            home = self.store.agent_path(agent) / "hermes"
+            home.mkdir(parents=True)
+            self.store.set_setting("agent-language-" + agent["id"], get_language())
+            template = template_root(kind)
+            soul = agent_instructions(kind)
+            if kind == "ux":
+                shutil.copytree(template / "skills", home / "skills")
+                soul += tr("\n\n## Método de trabajo incluido\n") + (template / "skills/ux-method/SKILL.md").read_text(encoding="utf-8")
+            (home / "SOUL.md").write_text(tr("Tu nombre es {name}.", name=name) + "\n\n" + soul, encoding="utf-8")
+            # Fresh memory only: never copy state.db, USER.md or credentials from another profile.
+            (home / "memories").mkdir()
+            (home / "memories/MEMORY.md").write_text(tr("# Memoria del agente\n\nSin recuerdos todavía.\n"), encoding="utf-8")
+            (home / "memories/USER.md").write_text(tr("# Contexto compartido\n\nPendiente de conocer al usuario.\n"), encoding="utf-8")
+            self.runtime.prepare(agent, self.store)
+        except Exception:
+            preparation.fail("failed", FAILED)
+            self.store.execute("UPDATE agents SET status='error',error=? WHERE id=?", (FAILED, agent["id"]))
+            raise RuntimeUnavailable(FAILED) from None
+        preparation.complete("profile", "Perfil, memoria inicial y workspace creados.")
+        self.store.execute("UPDATE agent_preparations SET status='pending' WHERE id=?", (preparation.id,))
         self.store.event(agent["id"], "Perfil persistente creado desde una plantilla limpia. Contenedor pendiente de iniciar.")
         return agent
 
@@ -155,16 +165,23 @@ class Service:
             return self.agent(agent_id)
         try:
             agent = self.agent(agent_id)
+            preparation = Preparation.begin(self.store, agent_id)
             self.store.execute("UPDATE agents SET status='provisioning',error=NULL WHERE id=?", (agent_id,))
             self.store.event(agent_id, "Comenzando provisión Docker.")
             try:
+                profile = self.store.one("SELECT status FROM preparation_steps WHERE preparation_id=? AND name='profile'", (preparation.id,))
+                if profile["status"] != "completed":
+                    raise RuntimeUnavailable("El perfil del agente está incompleto. Revisa sus archivos locales antes de iniciar el runtime.")
                 result = self.runtime.start(agent, self.store)
+                preparation.finish()
                 self.store.execute("UPDATE agents SET status=?,container_id=?,error=NULL WHERE id=?", (result["status"], result["container_id"], agent_id))
                 self.store.event(agent_id, "API Hermes comprobada. Runtime disponible.")
             except RuntimeUnavailable as exc:
+                preparation.fail("blocked", "No se pudo completar esta etapa. Revisa el requisito indicado y vuelve a iniciar el runtime.")
                 self.store.execute("UPDATE agents SET status='blocked',error=? WHERE id=?", (str(exc), agent_id))
                 self.store.event(agent_id, str(exc))
             except Exception:
+                preparation.fail("failed", FAILED)
                 # Provider/Docker exceptions can contain credentials. Never persist their raw text.
                 self.store.execute("UPDATE agents SET status='error',error=? WHERE id=?", ("La provisión falló. Comprueba la imagen, los volúmenes y los logs locales de Docker.", agent_id))
                 self.store.event(agent_id, "La provisión Docker falló; no se ha marcado el agente como disponible.")

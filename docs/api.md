@@ -22,7 +22,8 @@ Los hosts de la interfaz y API se limitan a `localhost`, `127.0.0.1` y `::1`. Lo
 | GET | `/api/templates` | Catálogo UX, diseñador, arquitecto, coder y community manager, con recomendaciones |
 | POST | `/api/projects/{project_id}/agents` | Crear perfil: `{"name":"Nora","template":"ux"}`; coder exige `planner_id` |
 | POST | `/api/agents/{agent_id}/start` | Solicitar inicio o recreación del runtime |
-| GET | `/api/agents/{agent_id}/runtime` | Estado actual y readiness de Hermes |
+| GET | `/api/agents/{agent_id}/runtime` | Estado actual y readiness de Hermes; devuelve `provisioning` y `ready: false` durante una provisión |
+| GET | `/api/agents/{agent_id}/preparation` | Último intento con siete etapas, estados, duración y registros seguros; `null` para perfiles antiguos sin registro. Requiere sesión y pertenencia |
 | GET | `/api/agents/{agent_id}/messages` | Historial visible de la plataforma |
 | GET | `/api/agents/{agent_id}/files` | Lista plana de entregables propios con nombre, ruta, tamaño y tipo |
 | GET | `/api/agents/{agent_id}/events` | Hasta 100 eventos recientes |
@@ -136,3 +137,7 @@ El panel **Delegaciones** utiliza las rutas HTTP del proyecto con la sesión loc
 `GET /api/projects/{project_id}/delegations` admite `status` (`queued`, `running`, `completed`, `failed`), `agent_id` (emisor o destinatario), `limit` (1–100, predeterminado 20) y `offset` (mínimo 0). Devuelve `tasks`, `total` filtrado, `limit`, `offset` y `counts` de todo el proyecto. Las tareas se ordenan por fecha de creación descendente y por ID para desempatar. Cada fila incluye IDs, nombres y tipos de ambos agentes, estado, fechas, `parent_id` y `task_preview` de hasta 200 caracteres; los resultados completos solo se leen al abrir el detalle.
 
 `GET /api/projects/{project_id}/delegations/{task_id}` devuelve el registro completo con nombres y roles. Una tarea de otro proyecto o sin pertenencia responde `404`. El historial y el detalle se consultan cada seis segundos mientras el panel está visible; los resultados se presentan como texto y pueden copiarse. Abrir el panel no inicia runtimes ni llamadas a modelos.
+
+### Registro de preparación
+
+`preparation` devuelve `id`, `status`, `created_at`, `finished_at`, `completed`, `total` y `steps`. Cada etapa incluye `id`, `label`, `description`, `status`, `started_at`, `finished_at`, `duration_seconds` y `logs` (`created_at`, `message`). Los estados son `pending`, `running`, `completed`, `blocked` y `failed`; las etiquetas, descripciones y registros responden a `Accept-Language`. La consulta no inicia Docker ni inferencia. La UI consulta el último intento cada tres segundos; no existe una ruta de historial de intentos en esta versión.

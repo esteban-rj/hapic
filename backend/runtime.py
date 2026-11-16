@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import json
+import hashlib
 import re
 import time
 from pathlib import Path
@@ -13,6 +14,7 @@ import yaml
 from .tool_catalog import effective_tools
 from .i18n import tr
 from .templates import agent_instructions, project_roster
+from .preparation import Preparation
 
 
 def platform_instructions(agent, store=None):
@@ -110,6 +112,7 @@ def failed_response_message(data):
 class DockerRuntime:
     image = os.getenv("HERMES_IMAGE", "nousresearch/hermes-agent:stable")
     network = os.getenv("HAPIC_DOCKER_NETWORK", "hapic-net")
+    spec_version = 1  # Increment when container flags/mount semantics change.
 
     def client(self):
         try:
@@ -131,13 +134,9 @@ class DockerRuntime:
         host_root = os.getenv("HAPIC_HOST_DATA_DIR")
         return str(Path(host_root) / path.relative_to(store.root)) if host_root else str(path)
 
-    def prepare(self, agent, store):
-        base = store.agent_path(agent)
-        home = base / "hermes"
-        home.mkdir(parents=True, exist_ok=True)
-        (base / "workspace").mkdir(exist_ok=True)
+    def configuration(self, agent, store):
         tools = effective_tools(agent, store)
-        config = {
+        return {
             "model": {"provider": "openai-api", "default": agent["model"], "base_url": "https://api.openai.com/v1", "api_mode": "codex_responses"},
             "agent": {"reasoning_effort": agent["effort"], "max_turns": 30, "disabled_toolsets": ["terminal", "file", "web", "browser", "code_execution", "delegation", "cronjob", "image", "tts", "skills", "skill_manage"]},
             "terminal": {"backend": "local", "cwd": "/workspace"},
@@ -146,14 +145,49 @@ class DockerRuntime:
             "mcp_servers": {"hapic": {"url": os.getenv("HAPIC_MCP_URL", "http://host.docker.internal:8000/mcp/"), "headers": {"Authorization": "Bearer ${HAPIC_MCP_TOKEN}"}, "tools": {"include": tools}, "timeout": 300}},
             "security": {"allow_lazy_installs": False},
         }
+
+    def fingerprint(self, agent, store):
+        """Opaque desired runtime signature; never expose credentials in labels or plans."""
+        spec = {"version": self.spec_version, "config": self.configuration(agent, store),
+                "image": self.image, "network": self.network,
+                "base": self.host_path(store.agent_path(agent), store),
+                "secrets": [store.api_key() or "", store.secret(agent["id"] + "-api") or "", store.secret(agent["id"] + "-mcp") or ""]}
+        return hashlib.sha256(json.dumps(spec, sort_keys=True).encode()).hexdigest()
+
+    def prepare(self, agent, store):
+        base = store.agent_path(agent)
+        home = base / "hermes"
+        home.mkdir(parents=True, exist_ok=True)
+        (base / "workspace").mkdir(exist_ok=True)
+        config = self.configuration(agent, store)
         (home / "config.yaml").write_text(yaml.safe_dump(config, allow_unicode=True, sort_keys=False), encoding="utf-8")
 
     def start(self, agent, store):
+        preparation = Preparation.current(store, agent["id"]) or Preparation.create(store, agent["id"], reuse_profile=True)
+        preparation.start("requirements", "Comprobando la conexión con Docker y la credencial de OpenAI.")
         client = self.client()
         client.api.timeout = 600  # Official image downloads can take several minutes.
         if not store.api_key():
             raise RuntimeUnavailable("Configura una API key de OpenAI en Configuración.")
+        preparation.complete("requirements", "Docker responde y hay una credencial de OpenAI configurada. El acceso al modelo se verifica al conversar.")
+        preparation.start("configuration", "Preparando la configuración de Hermes y las herramientas autorizadas.")
         self.prepare(agent, store)
+        preparation.complete("configuration", "Configuración de modelo, herramientas y permisos preparada.")
+        preparation.start("network", "Comprobando la red Docker de Hapic.")
+        try:
+            client.networks.get(self.network)
+        except docker.errors.NotFound:
+            client.networks.create(self.network, driver="bridge")
+        preparation.complete("network", "Red Docker disponible.")
+        preparation.start("image", "Buscando la imagen de Hermes en el motor Docker.")
+        try:
+            client.images.get(self.image)
+        except docker.errors.ImageNotFound:
+            store.event(agent["id"], "Descargando la imagen oficial de Hermes; puede tardar varios minutos.")
+            preparation.log("image", "Descargando la imagen oficial de Hermes; puede tardar varios minutos.")
+            client.images.pull(self.image)
+        preparation.complete("image", "Imagen de Hermes disponible en Docker.")
+        preparation.start("container", "Creando el contenedor con los volúmenes persistentes del agente.")
         name = f"hapic-{agent['id']}"
         try:
             old = client.containers.get(name)
@@ -164,15 +198,6 @@ class DockerRuntime:
             if old.labels.get("hapic.agent") != agent["id"] or old.labels.get("hapic.installation") != str(store.root):
                 raise RuntimeUnavailable("Hay un contenedor con el mismo nombre que no pertenece a esta instalación.")
             old.remove(force=True)
-        try:
-            client.networks.get(self.network)
-        except docker.errors.NotFound:
-            client.networks.create(self.network, driver="bridge")
-        try:
-            client.images.get(self.image)
-        except docker.errors.ImageNotFound:
-            store.event(agent["id"], "Descargando la imagen oficial de Hermes; puede tardar varios minutos.")
-            client.images.pull(self.image)
         base = store.agent_path(agent)
         container = client.containers.run(
             self.image, ["gateway", "run"], name=name, detach=True,
@@ -180,11 +205,13 @@ class DockerRuntime:
             volumes={self.host_path(base / "hermes", store): {"bind": "/opt/data", "mode": "rw"}, self.host_path(base / "workspace", store): {"bind": "/workspace", "mode": "rw"}},
             ports={"8642/tcp": ("127.0.0.1", None)} if not os.getenv("HAPIC_IN_DOCKER") else {},
             network=self.network, extra_hosts={"host.docker.internal": "host-gateway"},
-            labels={"hapic.agent": agent["id"], "hapic.installation": str(store.root)},
+            labels={"hapic.agent": agent["id"], "hapic.installation": str(store.root), "hapic.runtime": self.fingerprint(agent, store)},
             restart_policy={"Name": "unless-stopped"}, mem_limit="2g", nano_cpus=2_000_000_000,
             cap_drop=["NET_RAW", "SYS_ADMIN"], security_opt=["no-new-privileges:true"],
         )
         store.execute("UPDATE agents SET container_id=? WHERE id=?", (container.id, agent["id"]))
+        preparation.complete("container", "Contenedor creado. Falta comprobar que la API de Hermes esté lista.")
+        preparation.start("readiness", "Esperando la respuesta autenticada de salud de Hermes.")
         # Readiness means authenticated Hermes API ready, never just Docker 'running'.
         for _ in range(90):
             container.reload()
@@ -193,6 +220,7 @@ class DockerRuntime:
             try:
                 response = httpx.get(self.url(container) + "/health/detailed", headers={"Authorization": "Bearer " + store.token(agent["id"], "api")}, timeout=3)
                 if response.is_success and response.json().get("status") == "ok":
+                    preparation.complete("readiness", "Hermes respondió con status: ok. El agente está disponible.")
                     return {"container_id": container.id, "status": "running"}
             except httpx.HTTPError:
                 pass

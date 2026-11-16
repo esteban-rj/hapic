@@ -35,6 +35,10 @@ import {
   put,
   agentRoles,
   imageUrl,
+  agentDisplayStatus,
+  isPreparing,
+  type AgentRuntime,
+  type AgentPreparation,
   type Agent,
   type Capabilities,
   type AgentFile,
@@ -59,6 +63,7 @@ import { ToolsPanel } from "./ToolsPanel";
 import { LanguageSelector } from "./LanguageSelector";
 import { getLanguage } from "./i18n";
 import { DelegationsPanel } from "./DelegationsPanel";
+import { AgentConversation } from "./AgentConversation";
 
 type Page =
   | "Resumen"
@@ -110,6 +115,7 @@ function App() {
   const [orgId, setOrgId] = useState("");
   const [projectId, setProjectId] = useState("");
   const [agentId, setAgentId] = useState("");
+  const [startingAgentId, setStartingAgentId] = useState("");
   const [page, setPage] = useState<Page>("Resumen");
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
@@ -127,8 +133,7 @@ function App() {
     size: number;
     media_type?: "image" | "text";
   }>();
-  const [runtime, setRuntime] = useState<any>();
-  const [events, setEvents] = useState<any[]>([]);
+  const [agentDetail, setAgentDetail] = useState<{ agentId: string; runtime: AgentRuntime; events: { id: number; message: string; created_at: string }[]; preparation: AgentPreparation | null }>();
   const [tab, setTab] = useState<"Conversación" | "Archivos" | "Actividad">(
     "Conversación",
   );
@@ -197,7 +202,11 @@ function App() {
         a.organization_id === orgId &&
         (!projectId || a.project_id === projectId),
     ) || [];
-  const agent = agents.find((a) => a.id === agentId);
+  const selectedAgent = agents.find((a) => a.id === agentId);
+  const agent = selectedAgent && startingAgentId === selectedAgent.id ? { ...selectedAgent, status: "provisioning" } : selectedAgent;
+  const detail = agentDetail?.agentId === agent?.id ? agentDetail : undefined;
+  const runtime = detail?.runtime;
+  const events = detail?.events || [];
   const files = agentFiles && agentFiles.agentId === agent?.id ? agentFiles.files : undefined;
   const file = fileView?.agentId === agent?.id ? fileView : undefined;
   useEffect(() => {
@@ -211,35 +220,42 @@ function App() {
     }
   }, [orgId, state?.projects, projectId]);
   useEffect(() => {
-    if (!agentId) {
-      setRuntime(undefined);
-      return;
-    }
+    let loading = false;
+    const timer = setInterval(async () => {
+      if (loading || document.hidden) return;
+      loading = true;
+      try { await refresh(); } catch { /* Keep the last known state until the next refresh. */ }
+      finally { loading = false; }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [refresh]);
+  useEffect(() => {
+    if (!agentId) return;
     let active = true;
-    const load = () =>
-      Promise.all([
-        api("/agents/" + agentId + "/runtime"),
-        api<any[]>("/agents/" + agentId + "/events"),
-      ])
-        .then(([r, e]) => {
-          if (active) {
-            setRuntime(r);
-            setEvents(e);
-          }
-        })
-        .catch((e) => {
-          if (active) setError(e.message);
-        });
-    load();
-    const timer = setInterval(() => {
-      load();
-      refresh().catch(() => {});
-    }, 6000);
-    return () => {
-      active = false;
-      clearInterval(timer);
+    let loading = false;
+    const controller = new AbortController();
+    const load = async () => {
+      if (loading || document.hidden) return;
+      loading = true;
+      try {
+        const [runtime, events, preparation] = await Promise.all([
+          api<AgentRuntime>(`/agents/${agentId}/runtime`, { signal: controller.signal }),
+          api<{ id: number; message: string; created_at: string }[]>(`/agents/${agentId}/events`, { signal: controller.signal }),
+          api<AgentPreparation | null>(`/agents/${agentId}/preparation`, { signal: controller.signal }),
+        ]);
+        if (active) setAgentDetail({ agentId, runtime, events, preparation });
+      } catch (error) {
+        if (active) {
+          setAgentDetail((detail) => detail?.agentId === agentId ? undefined : detail);
+          setError((error as Error).message);
+        }
+      }
+      finally { loading = false; }
     };
-  }, [agentId, refresh]);
+    load();
+    const timer = setInterval(load, 3000);
+    return () => { active = false; controller.abort(); clearInterval(timer); };
+  }, [agentId, language]);
   useEffect(() => {
     if (tab !== "Archivos" || !agent) return;
     const selectedAgent = agent;
@@ -338,12 +354,16 @@ function App() {
   const start = () =>
     action(async () => {
       if (!agent) return;
-      await post("/agents/" + agent.id + "/start");
-      setRuntime({ status: "provisioning", ready: false });
-      setToast(
-        t("Provisión solicitada. El estado se comprobará automáticamente."),
-      );
-      await refresh();
+      setStartingAgentId(agent.id);
+      setState((state) => state ? { ...state, agents: state.agents.map((item) => item.id === agent.id ? { ...item, status: "provisioning" } : item) } : state);
+      setAgentDetail(undefined);
+      try {
+        await post("/agents/" + agent.id + "/start");
+        setToast(t("Provisión solicitada. El estado se comprobará automáticamente."));
+        await refresh();
+      } finally {
+        setStartingAgentId("");
+      }
     });
   const title =
     page === "Agentes" && agent
@@ -477,7 +497,7 @@ function App() {
                           <span>
                             {a.kind === "hapic" ? "H" : a.name[0].toUpperCase()}
                           </span>
-                          {a.name}
+                          <span className="agent-nav-name">{a.name}{isPreparing(a.status) ? <small>{t("En preparación")}</small> : null}</span>
                         </button>
                       ))
                   : null}
@@ -525,7 +545,7 @@ function App() {
               ) : page === "Delegaciones" ? (
                 "Sigue el trabajo que tus agentes se encargan entre sí."
               ) : agent ? (
-                <Badge status={runtime?.status || agent.status} />
+                <Badge status={agentDisplayStatus(agent, runtime)} />
               ) : (
                 t("Agentes con memoria, propósito y un espacio propio.")
               )}
@@ -543,7 +563,7 @@ function App() {
             ) : page === "Agentes" && agent ? (
               <button
                 className="secondary"
-                disabled={busy || runtime?.status === "provisioning"}
+                disabled={busy || agent.status === "provisioning" || runtime?.status === "provisioning"}
                 onClick={start}
               >
                 {busy ? (
@@ -833,35 +853,37 @@ function App() {
                     <code>{agent.id}</code>
                   </div>
                   {tab === "Conversación" ? (
-                    <div className="agent-layout">
-                      <Chat
-                        key={agent.id}
-                        agent={agent}
-                        connected={
-                          !!runtime?.ready && !!caps?.openai.configured
-                        }
-                        changed={refresh}
-                        onSettings={() => setPage("Configuración")}
-                        templates={templates}
-                        onPrepare={(kind) => setCreateTemplate(templates.find((t) => t.kind === kind))}
-                      />
-                      <div className="agent-side">
-                        {agent.kind !== "hapic" && templates.find((t) => t.kind === agent.kind) ? (
-                          <TemplateCard template={templates.find((t) => t.kind === agent.kind)!} compact />
-                        ) : (
-                          <div className="card compact-card">
-                            <Sparkles size={20} />
-                            <h3>{t("Un equipo para tu proyecto")}</h3>
-                            <p>
-                              {t("UX, diseño gráfico, arquitectura, código y community management. El community manager prepara contenido para Instagram y YouTube.")}
-                            </p>
-                          </div>
-                        )}
-                        {agent.planner_id ? <div className="card compact-card"><h3>{t("Arquitecto vinculado")}</h3><p>{state.agents.find((a) => a.id === agent.planner_id)?.name}</p><p>{t("Lee su plan publicado antes de escribir código.")}</p></div> : null}
-                        <button className="secondary" onClick={() => setPage("Plantillas")}><Plus size={15} /> {t("Añadir especialista")}</button>
-                        <RuntimeCard agent={agent} runtime={runtime} />
+                    <AgentConversation agent={agent} runtime={runtime} preparation={detail?.preparation} configured={!!caps?.openai.configured} onSettings={() => setPage("Configuración")}>
+                      <div className="agent-layout">
+                        <Chat
+                          key={agent.id}
+                          agent={agent}
+                          connected={
+                            agent.status === "running" && !!runtime?.ready && !!caps?.openai.configured
+                          }
+                          changed={refresh}
+                          onSettings={() => setPage("Configuración")}
+                          templates={templates}
+                          onPrepare={(kind) => setCreateTemplate(templates.find((t) => t.kind === kind))}
+                        />
+                        <div className="agent-side">
+                          {agent.kind !== "hapic" && templates.find((t) => t.kind === agent.kind) ? (
+                            <TemplateCard template={templates.find((t) => t.kind === agent.kind)!} compact />
+                          ) : (
+                            <div className="card compact-card">
+                              <Sparkles size={20} />
+                              <h3>{t("Un equipo para tu proyecto")}</h3>
+                              <p>
+                                {t("UX, diseño gráfico, arquitectura, código y community management. El community manager prepara contenido para Instagram y YouTube.")}
+                              </p>
+                            </div>
+                          )}
+                          {agent.planner_id ? <div className="card compact-card"><h3>{t("Arquitecto vinculado")}</h3><p>{state.agents.find((a) => a.id === agent.planner_id)?.name}</p><p>{t("Lee su plan publicado antes de escribir código.")}</p></div> : null}
+                          <button className="secondary" onClick={() => setPage("Plantillas")}><Plus size={15} /> {t("Añadir especialista")}</button>
+                          <RuntimeCard agent={agent} runtime={runtime} />
+                        </div>
                       </div>
-                    </div>
+                    </AgentConversation>
                   ) : tab === "Archivos" ? (
                     <div className="files-layout">
                       <section className="card generated-files">
@@ -1398,7 +1420,7 @@ function AgentTable({
     </Empty>
   );
 }
-function RuntimeCard({ agent, runtime }: { agent: Agent; runtime: any }) {
+function RuntimeCard({ agent, runtime }: { agent: Agent; runtime?: AgentRuntime }) {
   const { t } = useI18n();
   return (
     <section className="card runtime-card">
@@ -1407,7 +1429,7 @@ function RuntimeCard({ agent, runtime }: { agent: Agent; runtime: any }) {
         {t("Runtime real")}
       </div>
       <div className="runtime-body">
-        <Badge status={runtime?.status || agent.status} />
+        <Badge status={agentDisplayStatus(agent, runtime)} />
         <div>
           <span className="muted tiny">{t("CONTENEDOR")}</span>
           <code>{runtime?.container || t("Sin contenedor comprobado")}</code>
@@ -1426,7 +1448,7 @@ function RuntimeCard({ agent, runtime }: { agent: Agent; runtime: any }) {
         </div>
         {agent.error ? <p className="runtime-error">{agent.error}</p> : null}
         <p className="tiny muted">
-          {t("El estado de la API se comprueba cada 6 segundos. Una API disponible no verifica el acceso al modelo hasta el primer turno.")}
+          {t("El estado de la API se comprueba cada 3 segundos. Una API disponible no verifica el acceso al modelo hasta el primer turno.")}
         </p>
       </div>
     </section>

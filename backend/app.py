@@ -19,6 +19,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .i18n import get_language, language_context, localize_fields, tr
 from .runtime import RuntimeUnavailable
+from .preparation import Preparation, interrupt_preparations
 from .service import Service
 from .storage import DEFAULT_MODEL, EFFORTS, ROOT, Store, now, uid
 from .templates import SPECIALISTS, template as load_template
@@ -158,6 +159,7 @@ def create_app(data_dir: Path | None = None, runtime=None):
 
     @asynccontextmanager
     async def lifespan(app):
+        interrupt_preparations(store)
         store.execute("UPDATE delegated_tasks SET status='failed',error='La plataforma se reinició durante la delegación. Comprueba la actividad antes de reintentar.',updated_at=? WHERE status IN ('queued','running')", (now(),))
         # Interrupted provisioning becomes retryable after a control-plane restart.
         store.execute("UPDATE agents SET status='pending',error='La plataforma se reinició durante la provisión. Comprueba el runtime y reintenta.' WHERE status='provisioning'")
@@ -338,7 +340,16 @@ def create_app(data_dir: Path | None = None, runtime=None):
 
     @app.get("/api/agents/{agent_id}/runtime")
     def agent_runtime(agent_id: str):
-        return localize_fields(service.runtime.inspect(service.agent(agent_id), store), "message")
+        agent = service.agent(agent_id)
+        if agent["status"] == "provisioning":
+            return {"status": "provisioning", "ready": False}
+        return localize_fields(service.runtime.inspect(agent, store), "message")
+
+    @app.get("/api/agents/{agent_id}/preparation")
+    def agent_preparation(agent_id: str):
+        service.agent(agent_id)
+        preparation = Preparation.current(store, agent_id)
+        return preparation.snapshot() if preparation else None
 
     @app.get("/api/agents/{agent_id}/messages")
     def messages(agent_id: str):

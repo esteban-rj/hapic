@@ -9,14 +9,15 @@ if [ -n "$git_dir" ] && [ "$(basename -- "$git_dir")" = .git ]; then
 else
     app_root=$script_root
 fi
+app_root=${HAPIC_APP_DIR:-$app_root}
 cd "$app_root"
 
 port=${1:-8000}
 case "$port" in
-    ''|*[!0-9]*) echo 'Uso: scripts/start.sh [puerto]' >&2; exit 1 ;;
+    ''|*[!0-9]*) echo 'Uso: scripts/start.sh [8000]' >&2; exit 1 ;;
 esac
-if [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
-    echo 'El puerto debe estar entre 1 y 65535.' >&2
+if [ "$port" -ne 8000 ]; then
+    echo 'Hapic utiliza siempre el puerto 8000. Libera ese puerto antes de iniciar.' >&2
     exit 1
 fi
 
@@ -34,6 +35,7 @@ HAPIC_DATA_DIR=${HAPIC_DATA_DIR:-$app_root/.hapic}
 HAPIC_DATA_DIR=$("$python" -c 'import pathlib, sys; print(pathlib.Path(sys.argv[1]).expanduser().resolve())' "$HAPIC_DATA_DIR")
 HAPIC_HOST_DATA_DIR=${HAPIC_HOST_DATA_DIR:-$HAPIC_DATA_DIR}
 export HAPIC_DATA_DIR HAPIC_HOST_DATA_DIR
+export HAPIC_MCP_URL=http://host.docker.internal:8000/mcp/
 # docker-py uses DOCKER_HOST, whereas the CLI also understands Docker contexts.
 if [ -z "${DOCKER_HOST:-}" ] && command -v docker >/dev/null 2>&1; then
     DOCKER_HOST=$(docker context inspect --format '{{.Endpoints.docker.Host}}' 2>/dev/null || true)

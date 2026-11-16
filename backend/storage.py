@@ -52,6 +52,14 @@ class Store:
                 created_at TEXT NOT NULL,updated_at TEXT NOT NULL,UNIQUE(sender_id,request_id));
             CREATE INDEX IF NOT EXISTS delegated_tasks_project_created ON delegated_tasks(project_id,created_at DESC,id DESC);
             CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY AUTOINCREMENT,agent_id TEXT REFERENCES agents(id),message TEXT,created_at TEXT);
+            CREATE TABLE IF NOT EXISTS agent_preparations(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,agent_id TEXT NOT NULL REFERENCES agents(id),
+                status TEXT NOT NULL,created_at TEXT NOT NULL,finished_at TEXT);
+            CREATE INDEX IF NOT EXISTS agent_preparations_latest ON agent_preparations(agent_id,id DESC);
+            CREATE TABLE IF NOT EXISTS preparation_steps(
+                preparation_id INTEGER NOT NULL REFERENCES agent_preparations(id),name TEXT NOT NULL,
+                status TEXT NOT NULL,started_at TEXT,finished_at TEXT,logs TEXT NOT NULL DEFAULT '[]',
+                PRIMARY KEY(preparation_id,name));
             CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT);
             CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,csrf TEXT,created_at TEXT);
             CREATE TABLE IF NOT EXISTS images(id TEXT PRIMARY KEY,agent_id TEXT REFERENCES agents(id),message_id INTEGER REFERENCES messages(id),path TEXT,mime_type TEXT,created_at TEXT);

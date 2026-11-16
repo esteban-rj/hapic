@@ -36,14 +36,15 @@ export function Mark({ small = false }: { small?: boolean }) {
 export function Badge({ status }: { status: string }) {
   const { t } = useI18n();
   const labels: Record<string, string> = {
-    pending: t("Pendiente de iniciar"),
-    provisioning: t("Preparando runtime"),
+    pending: t("En preparación"),
+    provisioning: t("En preparación"),
     running: t("API disponible"),
     blocked: t("Requiere configuración"),
     error: t("Error de provisión"),
     stopped: t("Detenido"),
     unavailable: t("Sin conexión"),
     starting: t("API iniciando"),
+    checking: t("Comprobando disponibilidad"),
   };
   return (
     <span className={"status " + status}>

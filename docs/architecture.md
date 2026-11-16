@@ -25,6 +25,7 @@ flowchart LR
 | Servicio | Organizaciones, proyectos, perfiles, permisos y herramientas | `backend/service.py` |
 | Almacenamiento | SQLite, rutas persistentes, cifrado y tokens | `backend/storage.py` |
 | Runtime | Configuración Hermes, contenedores, readiness y chat | `backend/runtime.py` |
+| Preparación | Etapas, tiempos, registros seguros e intentos persistentes | `backend/preparation.py` |
 | Plantillas | Comportamiento y método revisables, sin estado privado | `templates/` |
 | Herramientas | Catálogo de integraciones y permisos efectivos por agente | `backend/tool_catalog.py` |
 | YouTube | OAuth de Google, tokens cifrados y consultas limitadas al canal asignado | `backend/youtube.py` |
@@ -57,6 +58,12 @@ Los identificadores generados se usan como nombres de carpetas. Los nombres eleg
 | `error` | Falló la provisión y se registró un mensaje seguro |
 
 La consulta de runtime puede devolver además `starting`, `stopped` o `unavailable` según su comprobación actual. La tabla de agentes muestra el estado registrado y el detalle consulta la API real. La disponibilidad de Hermes no verifica por sí sola el acceso al modelo de OpenAI: eso se comprueba al ejecutar un turno.
+
+### Flujo persistente de preparación
+
+`agent_preparations` conserva los intentos de arranque y `preparation_steps` sus siete etapas: perfil, requisitos, configuración, red, imagen, contenedor y readiness. El servicio registra la materialización del perfil y el runtime registra los hitos reales de Docker. Una imagen en caché completa su etapa sin simular descarga. El contenedor anterior se reemplaza después de preparar la red y la imagen. Cada etapa conserva estado, fechas y registros controlados por Hapic; no se almacena stdout del contenedor ni excepciones crudas. Los fallos conservan las etapas posteriores pendientes. Un reintento crea otro registro y reutiliza el perfil persistente.
+
+El endpoint de preparación verifica sesión y pertenencia; no consulta Docker ni realiza inferencia. Durante la preparación, Conversación muestra el último intento como nodos conectados, pendientes y registros por etapa, con navegación por teclado, temas claro/oscuro y disposición vertical en móvil. El título incluye el nombre del agente. El chat se monta únicamente con estado registrado `running`, readiness real y credencial configurada; reemplaza al flujo cuando se cumplen esas condiciones. Los runtimes detenidos o sin comprobación muestran su estado sin chat; un error al consultar el detalle invalida la disponibilidad anterior. Archivos y Actividad se mantienen accesibles. Selección y detalle se actualizan cada tres segundos mientras la pestaña está visible; las peticiones de detalle se cancelan al cambiar de agente o idioma. El estado de provisión tiene prioridad sobre la salud del contenedor anterior. Reiniciar la plataforma marca intentos interrumpidos como bloqueados y permite reintentar. Los perfiles previos sin registro devuelven `null`, sin inventar etapas históricas.
 
 ## Modelos y conversaciones
 

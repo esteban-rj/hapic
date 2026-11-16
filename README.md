@@ -45,9 +45,11 @@ Set-Location ..
 .\scripts\start.ps1
 ```
 
-Abre http://127.0.0.1:8000. El script también acepta `-Port 8080`. Puedes iniciar directamente con `.\.venv\Scripts\python.exe -m uvicorn backend.app:app --host 127.0.0.1 --port 8000`.
+Abre http://127.0.0.1:8000. Los lanzadores mantienen siempre el puerto 8000 y la conexión MCP en la misma instancia. Puedes iniciar directamente con `.\.venv\Scripts\python.exe -m uvicorn backend.app:app --host 127.0.0.1 --port 8000`.
 
-Durante desarrollo: inicia el backend en 8000 y ejecuta `pnpm dev` dentro de `frontend`; Vite sirve en 5173 y reenvía `/api` al backend. El build de producción lo sirve FastAPI desde el mismo origen.
+La skill propia del repositorio, [`hapic-execution`](.agents/skills/hapic-execution/SKILL.md), distingue cambios de interfaz, backend y runtime, conserva los datos y concilia solo los contenedores afectados. Invócala con `$hapic-execution`.
+
+Para iterar sobre la UI manteniendo el puerto 8000, inicia el backend y ejecuta `pnpm exec vite build --watch` dentro de `frontend`; recarga la interfaz después de cada compilación. FastAPI sirve el build y la API desde el mismo origen.
 
 ## Idioma / Language
 
@@ -65,7 +67,15 @@ Use the flag selector in the top bar or **Settings → Language** to switch betw
 
 The **Files** tab provides shortcuts to each agent's saved deliverables, with document and image previews. Architects also see their own published plan. System folders, profiles and memories stay out of this view.
 
-Sin Docker o sin key, el chat de IA está deshabilitado. **Preparar** o **Usar plantilla** permite crear el perfil desde un formulario; no solicita inferencia ni simula mensajes de Hermes o contenedores activos.
+El chat aparece únicamente cuando el agente está listo y hay una credencial de OpenAI configurada. Sin Docker o sin key, la conversación permanece oculta. **Preparar** o **Usar plantilla** permite crear el perfil desde un formulario; no solicita inferencia ni simula mensajes de Hermes o contenedores activos.
+
+## Sigue la preparación de cada agente
+
+Mientras un agente se prepara, la pestaña **Conversación** muestra **«{nombre} se está preparando»** y su flujo de creación: **perfil y memoria → requisitos → configuración → red → imagen de Hermes → contenedor → API disponible**. Cada nodo muestra su estado y duración; haz clic para consultar sus registros. La lista **Para estar disponible** muestra las etapas pendientes o bloqueadas y el motivo del fallo cuando existe. El flujo y sus registros se guardan en SQLite y se actualizan cada tres segundos mientras la pestaña está visible. Al confirmar que el agente está listo, el flujo desaparece y aparece el chat. Durante un reinicio vuelve la preparación; un agente detenido o cuya disponibilidad no se pudo comprobar muestra su estado sin chat.
+
+El selector lateral y la tabla identifican los perfiles pendientes o en proceso como **En preparación**. La disponibilidad exige la respuesta autenticada de salud de Hermes; el acceso al modelo se comprueba en el primer turno. Los registros muestran hitos de Hapic sin credenciales, no la salida completa del contenedor ni un porcentaje de descarga. Reiniciar genera un nuevo intento y conserva los anteriores en almacenamiento. Los perfiles anteriores a esta función muestran una explicación hasta su siguiente arranque. Consulta la [guía del flujo](docs/dashboard.md#sigue-la-preparación-de-cada-agente).
+
+While an agent is preparing, **Conversation** shows **“{name} is getting ready”** and **profile and memory → requirements → configuration → network → Hermes image → container → API available**. Select a node to inspect its status, duration and saved logs; **Before becoming available** lists unfinished stages and any failure reason. The flow persists in SQLite and refreshes every three seconds while the tab is visible. Once readiness is confirmed and OpenAI is configured, the flow disappears and the chat appears. Restarting hides the chat and restores preparation; stopped agents or unconfirmed availability show status guidance without a chat. The sidebar selector and table label pending or starting agents **Preparing**. Availability requires the authenticated Hermes health response; model access is checked on the first turn. Logs contain Hapic milestones without credentials, not full container output or download percentages. Restarting records a new attempt and retains previous attempts in storage. Older profiles start tracking on their next startup.
 
 ## Especialistas, planes e imágenes
 

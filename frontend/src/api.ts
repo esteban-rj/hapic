@@ -71,6 +71,41 @@ export type Agent = {
   error: string | null;
   created_at: string;
 };
+export type AgentRuntime = { status: string; ready: boolean; container?: string; message?: string };
+export type PreparationStatus = "pending" | "running" | "completed" | "blocked" | "failed";
+export type PreparationStep = {
+  id: string;
+  label: string;
+  description: string;
+  status: PreparationStatus;
+  started_at: string | null;
+  finished_at: string | null;
+  duration_seconds: number | null;
+  logs: { created_at: string; message: string }[];
+};
+export type AgentPreparation = {
+  id: number;
+  status: PreparationStatus;
+  created_at: string;
+  finished_at: string | null;
+  steps: PreparationStep[];
+  completed: number;
+  total: number;
+};
+export function isPreparing(status: string) {
+  return ["pending", "provisioning", "starting"].includes(status);
+}
+export function agentDisplayStatus(agent: Agent, runtime?: AgentRuntime) {
+  return agent.status !== "running" ? agent.status : runtime?.status || "checking";
+}
+export function agentCanReceive(agent: Agent, runtime: AgentRuntime | undefined, configured: boolean) {
+  return agent.status === "running" && runtime?.ready === true && configured;
+}
+export function agentIsPreparing(agent: Agent, runtime?: AgentRuntime, preparation?: AgentPreparation | null) {
+  if (agent.status === "running" && runtime?.ready) return false;
+  return isPreparing(agent.status) || runtime?.status === "provisioning" || runtime?.status === "starting"
+    || (!!preparation && preparation.status !== "completed");
+}
 export type State = {
   organizations: Org[];
   projects: Project[];
