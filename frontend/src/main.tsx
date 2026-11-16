@@ -37,7 +37,7 @@ import {
   imageUrl,
   type Agent,
   type Capabilities,
-  type FileNode,
+  type AgentFile,
   type Project,
   type State,
   type Template,
@@ -49,7 +49,7 @@ import {
   Mark,
   Modal,
   TemplateCard,
-  Tree,
+  FileShortcuts,
   CreateAgentModal,
   ImagePreview,
 } from "./components";
@@ -117,8 +117,8 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState("");
   const [projectName, setProjectName] = useState("");
-  const [fileTree, setTree] = useState<{ agentId: string; node: FileNode }>();
-  const [treeVersion, setTreeVersion] = useState(0);
+  const [agentFiles, setAgentFiles] = useState<{ agentId: string; files: AgentFile[] }>();
+  const [filesVersion, setFilesVersion] = useState(0);
   const previewRequest = useRef(0);
   const [fileView, setFile] = useState<{
     agentId: string;
@@ -198,7 +198,7 @@ function App() {
         (!projectId || a.project_id === projectId),
     ) || [];
   const agent = agents.find((a) => a.id === agentId);
-  const tree = fileTree?.agentId === agent?.id ? fileTree?.node : undefined;
+  const files = agentFiles && agentFiles.agentId === agent?.id ? agentFiles.files : undefined;
   const file = fileView?.agentId === agent?.id ? fileView : undefined;
   useEffect(() => {
     previewRequest.current += 1;
@@ -245,9 +245,9 @@ function App() {
     const selectedAgent = agent;
     let active = true;
     const load = () =>
-      api<FileNode>("/projects/" + selectedAgent.project_id + "/tree?agent_id=" + selectedAgent.id)
-        .then((t) => {
-          if (active) setTree({ agentId: selectedAgent.id, node: t });
+      api<AgentFile[]>("/agents/" + selectedAgent.id + "/files")
+        .then((files) => {
+          if (active) setAgentFiles({ agentId: selectedAgent.id, files });
         })
         .catch((e) => {
           if (active) setError(e.message);
@@ -258,7 +258,7 @@ function App() {
       active = false;
       clearInterval(timer);
     };
-  }, [tab, agent?.id, treeVersion, language]);
+  }, [tab, agent?.id, filesVersion, language]);
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(""), 5000);
@@ -318,7 +318,7 @@ function App() {
       setToast(t("Tu espacio está listo."));
     });
   }
-  async function readFile(n: FileNode) {
+  async function readFile(n: AgentFile) {
     if (!agent) return;
     const selectedAgent = agent;
     const request = ++previewRequest.current;
@@ -864,33 +864,36 @@ function App() {
                     </div>
                   ) : tab === "Archivos" ? (
                     <div className="files-layout">
-                      <section className="card file-tree">
+                      <section className="card generated-files">
                         <div className="card-title">
-                          <Folder size={16} />
+                          <FileText size={16} />
                           {t("Archivos de {name}", { name: agent.name })}
+                          {files ? <span className="file-count">{files.length}</span> : null}
                           <button
                             className="icon-button"
-                            aria-label={t("Actualizar árbol")}
-                            onClick={() => setTreeVersion((version) => version + 1)}
+                            aria-label={t("Actualizar archivos")}
+                            onClick={() => setFilesVersion((version) => version + 1)}
                           >
                             <RefreshCw size={14} />
                           </button>
                         </div>
-                        <div className="tree-scroll">
-                          {tree ? (
-                            <Tree
-                              key={agent.id}
-                              node={tree}
-                              label={agent.name}
+                        <div className="files-scroll">
+                          {files?.length ? (
+                            <FileShortcuts
+                              files={files}
                               select={readFile}
                               selected={file?.path}
                             />
+                          ) : files ? (
+                            <Empty icon={<FileText size={24} />} title={t("Aún no hay archivos")}>
+                              {t("Los archivos que genere {name} aparecerán aquí.", { name: agent.name })}
+                            </Empty>
                           ) : (
-                            <p className="muted">{t("Leyendo carpetas…")}</p>
+                            <p className="files-loading" role="status">{t("Cargando archivos…")}</p>
                           )}
                         </div>
-                        <p className="tree-note">
-                          {t("Solo archivos propios o accesibles para este agente. Los secretos y logs están excluidos.")}
+                        <p className="files-note">
+                          {t("Accesos directos a los archivos generados por este agente.")}
                         </p>
                       </section>
                       <section className="card file-preview">
@@ -914,7 +917,6 @@ function App() {
                           </Empty>
                         )}
                       </section>
-                      <RuntimeCard agent={agent} runtime={runtime} />
                     </div>
                   ) : (
                     <section className="card activity">

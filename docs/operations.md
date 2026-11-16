@@ -2,6 +2,12 @@
 
 Consulta primero el [README](../README.md) para instalar dependencias y arrancar la plataforma.
 
+## Arranque nativo en macOS y Linux
+
+Con el entorno `.venv` preparado y la interfaz compilada, ejecuta `./scripts/start.sh` (o `./scripts/start.sh 8080`). El lanzador usa el checkout principal de Git, incluso si se invoca desde un worktree temporal, y conserva los datos en su directorio `.hapic`. Así, eliminar un worktree no interrumpe el servidor ni elimina sus datos. `HAPIC_DATA_DIR` y `HAPIC_HOST_DATA_DIR` permiten indicar almacenamiento persistente alternativo; `HAPIC_PYTHON` permite seleccionar otro intérprete.
+
+No ejecutes el servidor ni guardes datos de uso habitual dentro de worktrees desechables. Antes de eliminar uno usado previamente, detén su servidor y sus agentes y respalda `.hapic` completo, incluidos los secretos. El arranque no recupera datos de carpetas ya eliminadas.
+
 ## Arranque con Docker
 
 En Windows, inicia Docker Desktop con motor Linux y ejecuta:

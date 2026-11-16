@@ -54,7 +54,9 @@ Construye tu equipo a partir de perfiles preparados. Cada plantilla define una f
 
 ## El trabajo toma forma en archivos.
 
-Briefs, planes, código, imágenes y calendarios tienen un espacio propio. Explora los archivos del proyecto y abre los entregables desde la misma interfaz. En esta pantalla, el Community Manager tiene un calendario editorial de ejemplo listo para revisar.
+Briefs, planes, código, imágenes y calendarios tienen un espacio propio. La pestaña **Archivos** muestra una lista de accesos directos a los entregables guardados por el agente seleccionado. Abre un archivo para ver su contenido o una imagen para previsualizarla y descargarla. El arquitecto también ve su propio plan publicado. Los perfiles, memorias y carpetas internas no aparecen en esta lista.
+
+The **Files** tab lists shortcuts to the selected agent's saved deliverables. Open documents for preview, or preview and download images. Architects also see their own published plan; internal folders, profiles and memories are excluded.
 
 ![Hapic: el trabajo toma forma en archivos](screenshots/hapic-entregables.jpg)
 

@@ -24,6 +24,7 @@ Los hosts de la interfaz y API se limitan a `localhost`, `127.0.0.1` y `::1`. Lo
 | POST | `/api/agents/{agent_id}/start` | Solicitar inicio o recreación del runtime |
 | GET | `/api/agents/{agent_id}/runtime` | Estado actual y readiness de Hermes |
 | GET | `/api/agents/{agent_id}/messages` | Historial visible de la plataforma |
+| GET | `/api/agents/{agent_id}/files` | Lista plana de entregables propios con nombre, ruta, tamaño y tipo |
 | GET | `/api/agents/{agent_id}/events` | Hasta 100 eventos recientes |
 | GET | `/api/projects/{project_id}/delegations` | Historial paginado de delegaciones, con nombres, roles y contadores por estado |
 | GET | `/api/projects/{project_id}/delegations/{task_id}` | Detalle con tarea, contexto, resultado esperado, respuesta y error |
@@ -62,7 +63,9 @@ Reutiliza un `request_id` solo para reintentar exactamente el mismo turno del mi
 
 La ruta de vista previa es relativa al proyecto. Se rechazan rutas absolutas, traversal, enlaces simbólicos, uniones de Windows y nombres protegidos. No se previsualizan `config.yaml`, archivos de autenticación, secretos, logs ni bases de datos binarias.
 
-La pestaña **Archivos** envía `agent_id` al consultar el árbol, las vistas previas y las descargas. El servidor limita el resultado al perfil Hermes y workspace propios del agente, más el plan publicado por ese arquitecto o por el arquitecto vinculado al coder. No incluye perfiles, entregables ni planes de otros agentes. El agente debe pertenecer al proyecto autorizado. Sin `agent_id`, estos endpoints conservan la vista de proyecto para el operador local.
+La pestaña **Archivos** consulta `GET /api/agents/{agent_id}/files`: devuelve una lista plana de documentos e imágenes válidos del workspace propio y, para un arquitecto, su propio plan publicado. Cada entrada contiene `name`, `path` relativa al proyecto, `relative_path` corta, `size` y `media_type` (`text` o `image`). No recorre el perfil Hermes ni incluye memorias, carpetas técnicas, archivos sin vista previa o planes generados por otros agentes. Los archivos dentro de subcarpetas aparecen como accesos directos. Se valida la pertenencia del agente antes de enumerar sus entregables.
+
+Las vistas previas y descargas envían `agent_id` y mantienen la comprobación de alcance. El endpoint `/tree` conserva el árbol técnico filtrado para compatibilidad: con `agent_id`, incluye el perfil y workspace propios, más el plan publicado por ese arquitecto o su arquitecto vinculado. Sin `agent_id`, conserva la vista de proyecto del operador local.
 
 Se permiten documentos y extensiones habituales de código (`.py`, `.ts`, `.tsx`, `.js`, `.sql`, etc.), hasta 256 000 bytes. La interfaz muestra el contenido como texto, sin ejecutar HTML o SVG. La ruta de imágenes admite PNG, JPEG, WebP y GIF hasta 20 MiB, verifica su firma y extensión, exige sesión y solo acepta workspaces. Rechaza imágenes dentro de perfiles Hermes y cachés.
 

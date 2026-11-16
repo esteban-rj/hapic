@@ -2,17 +2,15 @@ import { useI18n } from "./useI18n";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ModelSelect } from "./ModelSelect";
 import {
-  ChevronDown,
   ChevronRight,
   FileText,
-  Folder,
+  ArrowUpRight,
   X,
   ArrowUp,
   LoaderCircle,
   Sparkles,
   Copy,
   Check,
-  LockKeyhole,
   Image as ImageIcon,
 } from "lucide-react";
 import {
@@ -24,7 +22,7 @@ import {
   type Agent,
   type Message,
   type Project,
-  type FileNode,
+  type AgentFile,
   type Template,
 } from "./api";
 
@@ -112,60 +110,44 @@ export function Modal({
     </dialog>
   );
 }
-export function Tree({
-  node,
+export function FileShortcuts({
+  files,
   select,
   selected,
-  label,
-  depth = 0,
 }: {
-  node: FileNode;
-  select: (n: FileNode) => void;
+  files: AgentFile[];
+  select: (file: AgentFile) => void;
   selected?: string;
-  label?: string;
-  depth?: number;
 }) {
-  const [open, setOpen] = useState(depth < 4);
-  const directory = node.type === "directory";
+  const { t, locale } = useI18n();
+  const nameCounts = new Map<string, number>();
+  for (const file of files) nameCounts.set(file.name, (nameCounts.get(file.name) || 0) + 1);
   return (
-    <div>
-      <button
-        className={"tree-node " + (node.path === selected ? "selected" : "")}
-        style={{ paddingLeft: 12 + depth * 14 }}
-        onClick={() => (directory ? setOpen(!open) : select(node))}
-        title={node.path}
-        disabled={!directory && !node.preview}
-      >
-        {directory ? (
-          open ? (
-            <ChevronDown size={13} />
-          ) : (
-            <ChevronRight size={13} />
-          )
-        ) : (
-          <span className="tree-spacer" />
-        )}
-        {directory ? (
-          <Folder size={15} />
-        ) : node.preview ? (
-          node.media_type === "image" ? <ImageIcon size={15} /> : <FileText size={15} />
-        ) : (
-          <LockKeyhole size={14} />
-        )}
-        <span>{label || node.name}</span>
-      </button>
-      {directory && open
-        ? node.children?.map((child) => (
-            <Tree
-              key={child.path}
-              node={child}
-              select={select}
-              selected={selected}
-              depth={depth + 1}
-            />
-          ))
-        : null}
-    </div>
+    <ul className="file-shortcuts" aria-label={t("Archivos generados")}>
+      {files.map((file) => (
+        <li key={file.path}>
+          <button
+            type="button"
+            className={"file-shortcut " + (file.path === selected ? "selected" : "")}
+            onClick={() => select(file)}
+            title={file.relative_path}
+            aria-pressed={file.path === selected}
+          >
+            <span className="file-shortcut-icon" aria-hidden="true">
+              {file.media_type === "image" ? <ImageIcon size={19} /> : <FileText size={19} />}
+            </span>
+            <span className="file-shortcut-info">
+              <strong>{file.name}</strong>
+              {(nameCounts.get(file.name) || 0) > 1 ? <span>{file.relative_path}</span> : null}
+              <small>{file.name.split(".").pop()?.toUpperCase()} · {file.size < 1000
+                ? `${file.size.toLocaleString(locale)} B`
+                : `${(file.size / 1000).toLocaleString(locale, { maximumFractionDigits: 1 })} KB`}</small>
+            </span>
+            <ArrowUpRight className="file-shortcut-open" size={15} aria-hidden="true" />
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
 export function TemplateCard({

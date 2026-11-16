@@ -294,6 +294,97 @@ def test_agent_file_tree_and_preview_reject_symlinks(client, app):
     assert client.get(f"/api/projects/{p['id']}/file", params={"agent_id": ux["id"], "path": f"agents/{ux['id']}/workspace/linked.md"}).status_code == 400
 
 
+def test_generated_files_are_flat_own_deliverables_with_working_previews(client, app):
+    p = project(client)
+    service, store = app.state.service, app.state.store
+    ux = service.create_agent(p["id"], "Nora")
+    other = service.create_agent(p["id"], "Otro")
+    deep = "/".join(["nested"] * 10) + "/brief.md"
+    service.tool(ux, "project_write_file", {"path": deep, "content": "# Brief"})
+    service.tool(ux, "project_write_file", {"path": "brief.md", "content": "# Another brief"})
+    service.tool(other, "project_write_file", {"path": "private.md", "content": "Other agent"})
+    with patch.object(service.images, "generate", return_value=PNG):
+        service.tool(ux, "generate_project_image", {"prompt": "Example"})
+    # A large profile used to consume the tree's node limit before outputs appeared.
+    skills = store.agent_path(ux) / "hermes/skills/generated"
+    skills.mkdir()
+    for number in range(605):
+        (skills / f"internal-{number}.md").write_text("Internal skill")
+    response = client.get(f"/api/agents/{ux['id']}/files")
+    assert response.status_code == 200
+    files = response.json()
+    assert len(files) == 3
+    assert all("children" not in file and "type" not in file for file in files)
+    assert {file["relative_path"] for file in files if file["media_type"] == "text"} == {deep, "brief.md"}
+    assert all(file["path"].startswith(f"agents/{ux['id']}/workspace/") for file in files)
+    assert "SOUL.md" not in response.text and "MEMORY.md" not in response.text
+    for file in files:
+        endpoint = "image" if file["media_type"] == "image" else "file"
+        preview = client.get(f"/api/projects/{p['id']}/{endpoint}", params={"agent_id": ux["id"], "path": file["path"]})
+        assert preview.status_code == 200
+        if endpoint == "image":
+            assert preview.content == PNG
+        else:
+            assert preview.json()["size"] == file["size"]
+
+
+def test_generated_files_exclude_protected_unsupported_and_unsafe_outputs(client, app):
+    p = project(client)
+    service, store = app.state.service, app.state.store
+    ux = service.create_agent(p["id"], "Nora")
+    workspace = store.agent_path(ux) / "workspace"
+    for name in [".env", "auth.json", "config.yaml", "state.db", "bad.png"]:
+        (workspace / name).write_text("Internal data")
+    (workspace / "too-large.txt").write_text("x" * 256_001)
+    for name in [".private", "node_modules", "cache", "logs"]:
+        (workspace / name).mkdir()
+        (workspace / name / "internal.md").write_text("Internal data")
+    assert client.get(f"/api/agents/{ux['id']}/files").json() == []
+
+
+def test_generated_files_list_only_the_architects_own_plan(client, app):
+    p = project(client)
+    service = app.state.service
+    architect = service.create_agent(p["id"], "Ada", "architect")
+    coder = service.create_agent(p["id"], "Lin", "coder", architect["id"])
+    assert client.get(f"/api/agents/{architect['id']}/files").json() == []
+    plan = service.tool(architect, "publish_architecture_plan", {"content": "# Architecture"})
+    files = client.get(f"/api/agents/{architect['id']}/files").json()
+    assert len(files) == 1 and files[0]["path"] == plan["path"]
+    assert files[0]["name"] == "plan.md"
+    assert client.get(f"/api/agents/{coder['id']}/files").json() == []
+    service.tool(coder, "get_architecture_plan", {})
+    service.tool(coder, "project_write_file", {"path": "main.py", "content": "print('hello')"})
+    assert [file["name"] for file in client.get(f"/api/agents/{coder['id']}/files").json()] == ["main.py"]
+
+
+def test_generated_files_reject_links_and_require_project_membership(client, app):
+    p = project(client)
+    service, store = app.state.service, app.state.store
+    ux = service.create_agent(p["id"], "Nora")
+    other = service.create_agent(p["id"], "Otro")
+    private = store.agent_path(other) / "workspace/private.md"
+    private.write_text("Private")
+    workspace = store.agent_path(ux) / "workspace"
+    try:
+        (workspace / "linked.md").symlink_to(private)
+        (workspace / "linked-folder").symlink_to(private.parent, target_is_directory=True)
+    except OSError:
+        pytest.skip("Host does not permit symlink creation")
+    assert client.get(f"/api/agents/{ux['id']}/files").json() == []
+    (workspace / "linked.md").unlink()
+    (workspace / "linked-folder").unlink()
+    workspace.rmdir()
+    workspace.symlink_to(private.parent, target_is_directory=True)
+    assert client.get(f"/api/agents/{ux['id']}/files").status_code == 400
+    workspace.unlink()
+    assert client.get("/api/agents/unknown/files").status_code == 404
+    store.execute("DELETE FROM memberships WHERE organization_id=?", (p["organization_id"],))
+    assert client.get(f"/api/agents/{other['id']}/files").status_code == 404
+    client.cookies.clear()
+    assert client.get(f"/api/agents/{other['id']}/files").status_code == 401
+
+
 def test_model_changes_apply_and_clean_template(client, app):
     p = project(client)
     store = app.state.store

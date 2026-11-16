@@ -14,10 +14,17 @@ export async function api<T = any>(
       ...options.headers,
     },
   });
-  const data = await response.json();
+  const data = await response.json().catch(() => {
+    throw new Error(
+      translate(
+        "Hapic devolvió una respuesta no válida (HTTP {status}). Vuelve a intentarlo; si continúa, reinicia Hapic.",
+        { status: response.status },
+      ),
+    );
+  });
   if (!response.ok)
     throw new Error(
-      typeof data.detail === "string"
+      typeof data?.detail === "string"
         ? data.detail
         : translate("No se pudo completar la solicitud. Revisa los campos."),
     );
@@ -89,14 +96,12 @@ export type Template = {
   recommended_effort?: string;
   model_guidance?: string;
 };
-export type FileNode = {
+export type AgentFile = {
   name: string;
   path: string;
-  type: string;
-  children?: FileNode[];
-  preview?: boolean;
-  size?: number;
-  media_type?: "image" | "text";
+  relative_path: string;
+  size: number;
+  media_type: "image" | "text";
 };
 
 export const agentRoles: Record<Agent["kind"], string> = {

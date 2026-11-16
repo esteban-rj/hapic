@@ -61,7 +61,9 @@ Use the flag selector in the top bar or **Settings → Language** to switch betw
 2. En Configuración, define o reemplaza la API key de OpenAI mediante el formulario dedicado. La clave guardada tiene prioridad sobre `OPENAI_API_KEY` del entorno del servidor o del archivo `.env` ignorado por Git, que se usa como respaldo. Inicia o reinicia los agentes para aplicar la clave nueva. Nunca la pegues en el chat.
 3. Inicia Docker Desktop. Abre Hapic y pulsa **Iniciar runtime**. Si ya hay key al crear un proyecto, se solicita su arranque automáticamente.
 4. Pide crear un especialista UX, diseñador gráfico, arquitecto/planner, coder o community manager; también puedes ir a **Plantillas → Usar plantilla**. Hapic pregunta el nombre si falta y usa las herramientas MCP de provisión.
-5. Abre el especialista, conversa y consulta archivos/actividad. Los entregables aparecen solo cuando se guardan de verdad.
+5. Abre el especialista, conversa y consulta archivos/actividad. **Archivos** muestra accesos directos a sus entregables guardados, con vista previa de documentos e imágenes, sin recorrer carpetas del sistema. Incluye el plan que publique un arquitecto; cada agente muestra únicamente sus propios resultados.
+
+The **Files** tab provides shortcuts to each agent's saved deliverables, with document and image previews. Architects also see their own published plan. System folders, profiles and memories stay out of this view.
 
 Sin Docker o sin key, el chat de IA está deshabilitado. **Preparar** o **Usar plantilla** permite crear el perfil desde un formulario; no solicita inferencia ni simula mensajes de Hermes o contenedores activos.
 

@@ -344,6 +344,10 @@ def create_app(data_dir: Path | None = None, runtime=None):
     def messages(agent_id: str):
         return [localize_fields(message, "content") if message["source"] == "artifact" else message for message in service.messages(agent_id)]
 
+    @app.get("/api/agents/{agent_id}/files")
+    def generated_files(agent_id: str):
+        return service.generated_files(agent_id)
+
     @app.get("/api/agents/{agent_id}/events")
     def events(agent_id: str):
         service.agent(agent_id)
