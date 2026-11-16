@@ -91,3 +91,38 @@ El MVP permite un operador local. La sesión no es un sistema de cuentas remoto 
 La key del formulario se cifra con una clave maestra local. Los procesos y contenedores que realizan inferencia necesitan la credencial en su entorno. Un administrador de Docker o del equipo puede acceder a ese entorno.
 
 El estado se guarda localmente. Los mensajes y el contexto necesario para cada turno se transmiten a OpenAI. Consulta [operación](operations.md) para copias de seguridad, rotación y recuperación.
+
+
+## Colaboración directa entre agentes
+
+Cada turno de Hermes recibe en sus instrucciones un roster actualizado del mismo proyecto: ID, nombre, rol, descripción, capacidades, entregables, contrato de delegación, vínculo de planner y estado registrado. Se consulta SQLite al construir el turno; los perfiles existentes reciben esta conciencia sin copiar recuerdos privados. `list_project_agents` permite actualizar la consulta durante el turno. El estado registrado no garantiza readiness del runtime.
+
+Todos los perfiles tienen `delegate_task` y `get_task_status`. El emisor elige directamente al destinatario; el backend ejecuta el turno en el Hermes de ese destinatario, con sus propias herramientas y permisos. No interviene el modelo del orquestador. La tarea incluye contexto explícito y entregables esperados; no comparte automáticamente archivos ni memoria. Los resultados se recuperan consultando `get_task_status`; no se inicia automáticamente otro turno facturable del emisor.
+
+Las delegaciones se guardan en `delegated_tasks` con emisor, destinatario, solicitud idempotente, padre, estado, resultado y fechas. Solo los participantes pueden consultarlas mediante MCP. El backend rechaza autodelegación, otros proyectos, ciclos entre delegaciones activas y cadenas de más de cuatro niveles. Los turnos usan el mismo bloqueo que el chat y la provisión. Un destinatario ocupado, sin credencial o sin runtime produce una tarea fallida; no hay reintento automático. Tras reiniciar la plataforma, las tareas interrumpidas quedan fallidas para evitar repetir acciones con efectos externos sin revisión.
+
+Después de actualizar Hapic, reinicia los contenedores existentes desde **Iniciar runtime** para regenerar su configuración con las nuevas herramientas MCP. Los agentes nuevos ya las incluyen.
+
+### Contratos e instrucciones de colaboración
+
+Los seis perfiles, incluido Hapic, definen `delegation_contract` en su `template.json`. El catálogo de especialistas y el roster usan la misma fuente; Hapic mantiene su perfil propio sin aparecer como una plantilla de especialista creable.
+
+| Campo | Uso por el colega que delega |
+| --- | --- |
+| `owns` | Identificar el trabajo y las decisiones que corresponden al destinatario. |
+| `delegate_when` | Reconocer situaciones en las que conviene llamar a ese destinatario. |
+| `required_inputs` | Preparar el contexto necesario para empezar. |
+| `returns` | Establecer el entregable y sus criterios de aceptación. |
+| `limitations` | Considerar dependencias, permisos y acciones que el perfil no puede realizar. |
+
+`agent_instructions` combina el `SOUL.md` vigente del rol, las reglas comunes de `templates/delegation.md` y el contrato propio. Se utiliza al crear un perfil y en cada petición a Hermes. Así los agentes existentes reciben las nuevas instrucciones en su próximo turno sin reescribir su home ni sus recuerdos. Una vez disponibles las herramientas de colaboración, cambiar contratos o instrucciones requiere actualizar el backend y las plantillas, sin recrear contenedores.
+
+El destinatario usa el contexto del remitente y devuelve las preguntas esenciales en el resultado si no puede avanzar. El coder solicita planes o revisiones directamente a su arquitecto vinculado; si este es el remitente de una tarea activa, devuelve el bloqueo para evitar un ciclo. El Community Manager puede delegar imágenes solicitadas al diseñador. Las delegaciones no autorizan acciones adicionales fuera del alcance de la solicitud.
+
+La respuesta final incluye estado del trabajo, contenido utilizable, artefactos reales, validación y pendientes para el remitente. Debe incluir el texto, código o decisiones necesarios para continuar, porque las rutas de otro workspace no conceden acceso. Las imágenes se describen y referencian mediante agent_id, ruta e identificador real; no se inventan adjuntos compartidos. Esta es una convención de instrucciones, no una validación semántica del backend: `delegated_tasks.status='completed'` significa que terminó el turno del runtime, y el contenido de `result` puede informar trabajo parcial o bloqueado.
+
+### Panel de delegaciones
+
+La navegación principal incluye **Delegaciones**, con selector de proyecto, contadores, filtros por estado y agente (emisor o destinatario), paginación y detalle de la solicitud y respuesta. El estado del runtime de un agente y el de una tarea tienen etiquetas distintas. El detalle permite abrir el chat de los participantes y copiar el resultado; una respuesta finalizada puede informar trabajo parcial o bloqueado.
+
+Las rutas HTTP verifican sesión y pertenencia antes de leer `delegated_tasks`. La lista devuelve solo una vista resumida; el texto completo y los resultados se leen por ID y proyecto cuando se selecciona una tarea. Los contadores y la página se leen en una misma transacción para mantener una vista consistente. Un índice por proyecto, fecha e ID apoya el historial. La UI actualiza lista y detalle cada seis segundos, cancela peticiones al cambiar de vista y descarta respuestas de proyectos o filtros anteriores. Todo el panel funciona sobre SQLite sin depender de Docker ni de inferencia.

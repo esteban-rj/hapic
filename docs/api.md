@@ -25,6 +25,8 @@ Los hosts de la interfaz y API se limitan a `localhost`, `127.0.0.1` y `::1`. Lo
 | GET | `/api/agents/{agent_id}/runtime` | Estado actual y readiness de Hermes |
 | GET | `/api/agents/{agent_id}/messages` | Historial visible de la plataforma |
 | GET | `/api/agents/{agent_id}/events` | Hasta 100 eventos recientes |
+| GET | `/api/projects/{project_id}/delegations` | Historial paginado de delegaciones, con nombres, roles y contadores por estado |
+| GET | `/api/projects/{project_id}/delegations/{task_id}` | Detalle con tarea, contexto, resultado esperado, respuesta y error |
 | POST | `/api/agents/{agent_id}/chat` | Enviar turno con `content` y `request_id` único |
 | GET | `/api/projects/{project_id}/tree` | Árbol real filtrado; `agent_id` limita al agente seleccionado |
 | GET | `/api/projects/{project_id}/file?path=…` | Vista previa de documento permitido; admite `agent_id` |
@@ -79,7 +81,9 @@ El servidor MCP se monta en `/mcp/` mediante el SDK oficial de Python. Los token
 | `get_ux_template` | Hapic | Sin argumentos de negocio |
 | `create_ux_agent` | Hapic | `name` |
 | `list_agent_templates` | Hapic | Sin argumentos de negocio |
-| `list_project_agents` | Hapic | Sin argumentos; solo el proyecto autorizado |
+| `list_project_agents` | Todos | Sin argumentos; solo el proyecto autorizado, incluye `delegation_contract` |
+| `delegate_task` | Todos | `agent_id`, `task`, `request_id`, `context` y `expected_result` opcionales |
+| `get_task_status` | Emisor o destinatario | `task_id` de una delegación del mismo proyecto |
 | `create_specialist_agent` | Hapic | `name`, `template`, `planner_id` para coder |
 | `project_list_files` | Especialistas | Sin argumentos de negocio |
 | `project_read_file` | Especialistas | `path` relativa a su workspace |
@@ -105,3 +109,27 @@ Las herramientas se filtran en la configuración Hermes y se autorizan de nuevo 
 - `503`: Docker, Hermes, credencial o inferencia no disponibles.
 
 Los errores de validación se redactan para evitar devolver valores de credenciales. Las respuestas de la API llevan `Cache-Control: no-store`.
+
+Un turno Hermes puede devolver HTTP 200 y `status: failed` aunque el proveedor haya rechazado la autenticación. El chat de Hapic responde `503` con un mensaje específico cuando identifica ese rechazo de OpenAI (401); nunca refleja el error bruto ni fragmentos de la credencial. La actividad guarda el mismo diagnóstico seguro. Un turno cancelado se informa por separado.
+
+
+### Delegación directa
+
+Todos los agentes pueden usar `list_project_agents` para consultar roles, capacidades, entregables y `delegation_contract` de sus colegas del proyecto, incluido Hapic. El contrato contiene cinco listas de texto: `owns` (responsabilidad), `delegate_when` (cuándo llamarlo), `required_inputs` (contexto necesario), `returns` (entrega esperada) y `limitations` (límites). Los mismos contratos aparecen en `/api/templates`, `/api/templates/ux` y `list_agent_templates` para los cinco especialistas. No incluyen instrucciones privadas ni dan acceso a archivos de otros agentes.
+
+- `delegate_task(agent_id, task, request_id, context="", expected_result="")`: crea una tarea asíncrona directamente para otro agente del mismo proyecto. Usa el contrato del destinatario para aportar `required_inputs` en `context` y concretar entregables y criterios en `expected_result`. Reutiliza el mismo `request_id` (hasta 128 caracteres) para reintentar la misma solicitud sin duplicar ejecución. Cambiar sus argumentos con ese identificador se rechaza.
+- `get_task_status(task_id)`: devuelve el registro y su `status` (`queued`, `running`, `completed`, `failed`), `result` y `error`; solo para emisor o destinatario.
+
+La respuesta de creación no confirma finalización. Consulta el resultado antes de usarlo. Un fallo puede ocurrir después de que el runtime haya empezado a actuar: revisa la actividad del destinatario antes de crear otra solicitud. No hay llamada adicional al orquestador ni continuación automática del emisor. Reinicia los runtimes existentes después de actualizar para cargar las herramientas.
+
+Las instrucciones piden al destinatario devolver en `result` una respuesta con **Estado del trabajo**, **Resultado**, **Artefactos**, **Validación** y **Pendientes para el remitente**. El contenido necesario se incluye en la respuesta, además de referencias reales de archivos, sin asumir acceso al workspace del colega. Si falta contexto esencial, las preguntas se devuelven al remitente con el estado del trabajo bloqueado. `result` sigue siendo texto libre y `status: completed` confirma el fin del turno, no el cumplimiento de los criterios de aceptación; el backend no valida esa convención de respuesta.
+
+Las instrucciones de rol y contratos actualizados se envían en cada turno, también para perfiles persistentes existentes. Si las herramientas MCP de colaboración ya están cargadas, estas actualizaciones de instrucciones no requieren recrear el contenedor.
+
+### Historial para el operador
+
+El panel **Delegaciones** utiliza las rutas HTTP del proyecto con la sesión local y la pertenencia a su organización. El operador puede revisar todas las delegaciones de sus proyectos; el acceso MCP de un agente continúa limitado a las tareas en las que participa.
+
+`GET /api/projects/{project_id}/delegations` admite `status` (`queued`, `running`, `completed`, `failed`), `agent_id` (emisor o destinatario), `limit` (1–100, predeterminado 20) y `offset` (mínimo 0). Devuelve `tasks`, `total` filtrado, `limit`, `offset` y `counts` de todo el proyecto. Las tareas se ordenan por fecha de creación descendente y por ID para desempatar. Cada fila incluye IDs, nombres y tipos de ambos agentes, estado, fechas, `parent_id` y `task_preview` de hasta 200 caracteres; los resultados completos solo se leen al abrir el detalle.
+
+`GET /api/projects/{project_id}/delegations/{task_id}` devuelve el registro completo con nombres y roles. Una tarea de otro proyecto o sin pertenencia responde `404`. El historial y el detalle se consultan cada seis segundos mientras el panel está visible; los resultados se presentan como texto y pueden copiarse. Abrir el panel no inicia runtimes ni llamadas a modelos.

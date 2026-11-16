@@ -60,6 +60,14 @@ Briefs, planes, código, imágenes y calendarios tienen un espacio propio. Explo
 
 [Ver la captura original completa del explorador](screenshots/dashboard-archivos.jpg)
 
+## Sigue las delegaciones de tu equipo.
+
+Abre **Delegaciones** en el menú lateral y selecciona un proyecto para ver las tareas que sus agentes se encargan directamente. Cada fila muestra quién la envía, quién la recibe y su estado: **En cola**, **En curso**, **Finalizada** o **Fallida**.
+
+Filtra por estado o por un agente que participe como emisor o destinatario. Selecciona la tarea para leer su contexto, resultado esperado, respuesta completa y posibles errores. Puedes copiar el resultado o abrir el chat de cualquiera de los participantes. Los contadores y resultados se actualizan automáticamente cada seis segundos mientras el panel está visible.
+
+Una tarea finalizada significa que el agente terminó su respuesta; revisa si informa entregables completos, trabajo parcial o bloqueos. El historial se conserva entre sesiones y puede consultarse aunque los runtimes estén detenidos.
+
 ## Tus herramientas. Más posibilidades.
 
 Conecta un canal autorizado de YouTube y elige qué agentes pueden consultar sus vídeos, comentarios y métricas. La herramienta pertenece al proyecto y puede integrarse en cualquiera de sus perfiles; Community Manager la incluye preseleccionada.
@@ -78,6 +86,6 @@ Crea una organización, abre un proyecto y prepara los especialistas que necesit
 
 Interfaz real de este repositorio, capturada el 10 de noviembre de 2026 en una ventana compacta del navegador. La organización **Estudio Aurora · Demo**, sus proyectos y los archivos visibles son ejemplos creados en almacenamiento independiente. Los agentes aparecen **Pendientes de iniciar** y YouTube está pendiente de configuración y conexión.
 
-YouTube es de solo lectura; la publicación y la delegación automática entre agentes siguen pendientes. El Coder entrega código y pruebas en archivos. La conversación requiere configurar OpenAI e iniciar el runtime Docker del agente.
+YouTube es de solo lectura; la publicación sigue pendiente. Los agentes pueden delegarse tareas directamente y consultar los resultados; el panel **Delegaciones** permite seguir ese trabajo. El Coder entrega código y pruebas en archivos. La conversación y la ejecución de tareas delegadas requieren configurar OpenAI e iniciar el runtime Docker del agente destinatario.
 
 [Recorrido visual](https://esteban-rj.github.io/hapic/) · [README](../README.md) · [Configuración de YouTube](youtube.md) · [Arquitectura](architecture.md)

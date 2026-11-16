@@ -108,6 +108,38 @@ export function imageUrl(projectId: string, path: string, download = false, agen
 export type Attachment = { id: string; path: string; name: string; url: string; mime_type: string };
 export type Message = { id: number; role: string; content: string; source: string; attachments?: Attachment[] };
 
+export type DelegationStatus = "queued" | "running" | "completed" | "failed";
+export type DelegationSummary = {
+  id: string;
+  project_id: string;
+  sender_id: string;
+  sender_name: string;
+  sender_kind: Agent["kind"];
+  recipient_id: string;
+  recipient_name: string;
+  recipient_kind: Agent["kind"];
+  parent_id: string | null;
+  status: DelegationStatus;
+  task_preview: string;
+  created_at: string;
+  updated_at: string;
+};
+export type Delegation = Omit<DelegationSummary, "task_preview"> & {
+  request_id: string;
+  task: string;
+  context: string;
+  expected_result: string;
+  result: string | null;
+  error: string | null;
+};
+export type ProjectDelegations = {
+  tasks: DelegationSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+  counts: Record<DelegationStatus, number>;
+};
+
 export type IntegrationTool = {
   id: string;
   name: string;

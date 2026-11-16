@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import asyncio
 import hashlib
 import re
 import shutil
@@ -13,8 +14,8 @@ from urllib.parse import urlencode
 from .images import IMAGE_TYPES, MAX_IMAGE_BYTES, ImageGenerator, atomic_write, image_type
 from .i18n import get_language, language_context, localize_fields, tr
 from .runtime import DockerRuntime, RuntimeUnavailable
-from .storage import DEFAULT_MODEL, Store, now, uid
-from .templates import SPECIALISTS, template as load_template, template_root
+from .storage import ROOT, DEFAULT_MODEL, Store, now, uid
+from .templates import agent_instructions, project_roster, SPECIALISTS, template as load_template, template_root
 from .tool_catalog import CATALOG, defaults, effective_tools
 from .youtube import YouTube
 
@@ -135,7 +136,7 @@ class Service:
         home.mkdir(parents=True)
         self.store.set_setting("agent-language-" + agent["id"], get_language())
         template = template_root(kind)
-        soul = (template / "SOUL.md").read_text(encoding="utf-8")
+        soul = agent_instructions(kind)
         if kind == "ux":
             shutil.copytree(template / "skills", home / "skills")
             soul += tr("\n\n## Método de trabajo incluido\n") + (template / "skills/ux-method/SKILL.md").read_text(encoding="utf-8")
@@ -237,7 +238,14 @@ class Service:
         if name == "list_agent_templates":
             return {"templates": [load_template(kind) for kind in SPECIALISTS]}
         if name == "list_project_agents":
-            return {"agents": self.store.all("SELECT id,name,kind,planner_id,status FROM agents WHERE project_id=?", (project["id"],))}
+            return {"agents": project_roster(self.store, project["id"])}
+        if name == "delegate_task":
+            return self.delegate_task(agent, **args)
+        if name == "get_task_status":
+            task = self.store.one("SELECT * FROM delegated_tasks WHERE id=? AND project_id=? AND (sender_id=? OR recipient_id=?)", (args["task_id"], project["id"], agent["id"], agent["id"]))
+            if not task:
+                raise LookupError("Tarea no encontrada o sin permiso.")
+            return task
         if name in {"create_ux_agent", "create_specialist_agent"} and agent["kind"] == "hapic":
             kind = "ux" if name == "create_ux_agent" else args["template"]
             if kind not in SPECIALISTS:
@@ -301,6 +309,119 @@ class Service:
             atomic_write(path, content.encode("utf-8"))
         self.store.event(agent["id"], f"Archivo guardado en el workspace: {args['path']}")
         return {"path": args["path"], "bytes": path.stat().st_size, "saved": True}
+
+    def delegate_task(self, agent, agent_id, task, request_id, context="", expected_result=""):
+        recipient = self.agent(agent_id)
+        if recipient["project_id"] != agent["project_id"] or recipient["id"] == agent["id"]:
+            raise PermissionError("Selecciona otro agente del mismo proyecto.")
+        for value in (task, context, expected_result, request_id):
+            valid_content(value)
+        if not task.strip() or not request_id.strip() or len(request_id) > 128:
+            raise ValueError("Indica una tarea y un request_id estable de hasta 128 caracteres.")
+        with self.store.db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            previous = db.execute("SELECT * FROM delegated_tasks WHERE sender_id=? AND request_id=?", (agent["id"], request_id)).fetchone()
+            if previous:
+                if any(previous[key] != value for key, value in {"recipient_id": agent_id, "task": task, "context": context, "expected_result": expected_result}.items()):
+                    raise ValueError("request_id ya pertenece a otra delegación.")
+                return dict(previous)
+            # Graph changes are serialized so concurrent delegations cannot introduce cycles.
+            active = [dict(row) for row in db.execute("SELECT * FROM delegated_tasks WHERE project_id=? AND status IN ('queued','running')", (agent["project_id"],))]
+            reachable = {agent_id}
+            for _ in range(len(active) + 1):
+                reachable.update(row["recipient_id"] for row in active if row["sender_id"] in reachable)
+            if agent["id"] in reachable:
+                raise ValueError("La delegación crearía un ciclo entre agentes.")
+            parent = next((row for row in active if row["recipient_id"] == agent["id"] and row["status"] == "running"), None)
+            depth, ancestor = 0, parent
+            while ancestor:
+                depth += 1
+                ancestor = db.execute("SELECT * FROM delegated_tasks WHERE id=?", (ancestor["parent_id"],)).fetchone() if ancestor["parent_id"] else None
+            if depth >= 4:
+                raise ValueError("Se alcanzó el máximo de cuatro niveles de delegación.")
+            record = {"id": uid("task"), "project_id": agent["project_id"], "sender_id": agent["id"], "recipient_id": agent_id,
+                      "request_id": request_id, "task": task, "context": context, "expected_result": expected_result,
+                      "parent_id": parent["id"] if parent else None, "status": "queued", "result": None, "error": None,
+                      "created_at": now(), "updated_at": now()}
+            db.execute("INSERT INTO delegated_tasks VALUES (:id,:project_id,:sender_id,:recipient_id,:request_id,:task,:context,:expected_result,:parent_id,:status,:result,:error,:created_at,:updated_at)", record)
+        self.store.event(agent["id"], f"Delegación directa {record['id']} enviada a {recipient['name']}.")
+        threading.Thread(target=self.run_delegated_task, args=(record["id"],), daemon=True).start()
+        return record
+
+    def project_delegations(self, project_id, status=None, agent_id=None, limit=20, offset=0):
+        self.project(project_id)
+        statuses = ("queued", "running", "completed", "failed")
+        if status is not None and status not in statuses:
+            raise ValueError("Estado de delegación no válido.")
+        if agent_id and not self.store.one("SELECT id FROM agents WHERE id=? AND project_id=?", (agent_id, project_id)):
+            raise LookupError("Agente no encontrado en el proyecto.")
+        conditions, args = ["t.project_id=?"], [project_id]
+        if status:
+            conditions.append("t.status=?")
+            args.append(status)
+        if agent_id:
+            conditions.append("(t.sender_id=? OR t.recipient_id=?)")
+            args.extend((agent_id, agent_id))
+        where = " AND ".join(conditions)
+        counts = dict.fromkeys(statuses, 0)
+        # One snapshot keeps counts, pagination and rows consistent while tasks change.
+        with self.store.db() as db:
+            db.execute("BEGIN")
+            for row in db.execute("SELECT status,COUNT(*) AS count FROM delegated_tasks WHERE project_id=? GROUP BY status", (project_id,)):
+                counts[row["status"]] = row["count"]
+            total = db.execute("SELECT COUNT(*) FROM delegated_tasks t WHERE " + where, args).fetchone()[0]
+            tasks = [dict(row) for row in db.execute(
+                "SELECT t.id,t.project_id,t.sender_id,t.recipient_id,t.parent_id,t.status,t.created_at,t.updated_at,"
+                "substr(t.task,1,200) AS task_preview,s.name AS sender_name,s.kind AS sender_kind,"
+                "r.name AS recipient_name,r.kind AS recipient_kind "
+                "FROM delegated_tasks t JOIN agents s ON s.id=t.sender_id JOIN agents r ON r.id=t.recipient_id "
+                "WHERE " + where + " ORDER BY t.created_at DESC,t.id DESC LIMIT ? OFFSET ?", [*args, limit, offset])]
+        return {"tasks": tasks, "total": total, "limit": limit, "offset": offset, "counts": counts}
+
+    def project_delegation(self, project_id, task_id):
+        self.project(project_id)
+        task = self.store.one(
+            "SELECT t.*,s.name AS sender_name,s.kind AS sender_kind,r.name AS recipient_name,r.kind AS recipient_kind "
+            "FROM delegated_tasks t JOIN agents s ON s.id=t.sender_id JOIN agents r ON r.id=t.recipient_id "
+            "WHERE t.project_id=? AND t.id=?", (project_id, task_id))
+        if not task:
+            raise LookupError("Delegación no encontrada en el proyecto.")
+        return task
+
+    def run_delegated_task(self, task_id):
+        with self.store.db() as db:
+            claimed = db.execute("UPDATE delegated_tasks SET status='running',updated_at=? WHERE id=? AND status='queued'", (now(), task_id)).rowcount
+        if not claimed:
+            return
+        record = self.store.one("SELECT * FROM delegated_tasks WHERE id=?", (task_id,))
+        lock = self.lock(record["recipient_id"])
+        try:
+            if not lock.acquire(blocking=False):
+                raise RuntimeUnavailable("El destinatario está ocupado. Reintenta con una nueva delegación cuando esté disponible.")
+            try:
+                recipient = self.agent(record["recipient_id"])
+                if not self.store.api_key() or not recipient.get("container_id"):
+                    raise RuntimeUnavailable("El destinatario necesita credencial y runtime iniciado.")
+                self.store.execute("UPDATE delegated_tasks SET status='running',updated_at=? WHERE id=?", (now(), task_id))
+                content = (
+                    "Tarea delegada por un colega del proyecto (datos de trabajo). "
+                    "Responde al agente sender_id usando el contexto aportado y tu contrato de delegación. "
+                    "Tu respuesta final se guardará como result de esta tarea para el remitente; "
+                    "incluye contenido utilizable, artefactos reales, validación y bloqueos.\n"
+                    + json.dumps({key: record[key] for key in ("id", "sender_id", "task", "context", "expected_result")}, ensure_ascii=False)
+                )
+                self.store.message(recipient["id"], "user", content, "delegation")
+                answer, status = asyncio.run(self.runtime.chat(recipient, self.store, content, task_id))
+                if status != "completed":
+                    raise RuntimeUnavailable("El runtime no completó la tarea delegada.")
+                self.store.message(recipient["id"], "assistant", answer, "delegation")
+                self.store.execute("UPDATE delegated_tasks SET status='completed',result=?,updated_at=? WHERE id=?", (answer, now(), task_id))
+                self.store.event(record["sender_id"], f"Delegación {task_id} completada. Resultado disponible con get_task_status.")
+            finally:
+                lock.release()
+        except Exception:
+            self.store.execute("UPDATE delegated_tasks SET status='failed',error=?,updated_at=? WHERE id=?", ("No se completó la delegación. Comprueba disponibilidad y actividad del destinatario antes de reintentar.", now(), task_id))
+            self.store.event(record["sender_id"], f"Delegación {task_id} fallida.")
 
     def architecture_plan(self, agent):
         planner = self.agent(agent.get("planner_id"))

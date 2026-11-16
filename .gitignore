@@ -12,3 +12,4 @@ __pycache__/
 artifacts/
 client_secret*.json
 **/client_secret*.json
+.DS_Store

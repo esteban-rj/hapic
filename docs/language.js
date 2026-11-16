@@ -5,7 +5,7 @@
   const attributes = [
     [document.querySelector('.brand'), 'aria-label', 'Hapic, inicio', 'Hapic, home'],
     [document.querySelector('.tour-nav'), 'aria-label', 'Recorrido por Hapic', 'Hapic tour'],
-    [document.querySelector('meta[name="description"]'), 'content', document.querySelector('meta[name="description"]').content, 'Discover Hapic: projects with context, AI specialists, persistent memory and files, and tools for your team.']
+    [document.querySelector('meta[name="description"]'), 'content', document.querySelector('meta[name="description"]').content, 'Discover Hapic: projects with context, AI specialists, persistent memory and files, direct delegations, and tools for your team.']
   ];
   function apply(language) {
     document.documentElement.lang = language;

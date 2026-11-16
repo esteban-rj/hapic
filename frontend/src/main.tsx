@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   ArrowRight,
+  ArrowRightLeft,
   ArrowUpRight,
   Box,
   Building2,
@@ -57,11 +58,13 @@ import { ModelSelect } from "./ModelSelect";
 import { ToolsPanel } from "./ToolsPanel";
 import { LanguageSelector } from "./LanguageSelector";
 import { getLanguage } from "./i18n";
+import { DelegationsPanel } from "./DelegationsPanel";
 
 type Page =
   | "Resumen"
   | "Proyectos"
   | "Agentes"
+  | "Delegaciones"
   | "Plantillas"
   | "Herramientas"
   | "Configuración";
@@ -69,6 +72,7 @@ const nav = [
   { name: "Resumen" as Page, icon: LayoutGrid },
   { name: "Proyectos" as Page, icon: Layers },
   { name: "Agentes" as Page, icon: Sparkles },
+  { name: "Delegaciones" as Page, icon: ArrowRightLeft },
   { name: "Plantillas" as Page, icon: Folder },
   { name: "Herramientas" as Page, icon: Wrench },
   { name: "Configuración" as Page, icon: Settings },
@@ -426,7 +430,7 @@ function App() {
                 setPage(n);
                 if (n !== "Agentes") {
                   setAgentId("");
-                  if (n !== "Herramientas") setProjectId("");
+                  if (n !== "Herramientas" && n !== "Delegaciones") setProjectId("");
                 }
               }}
             >
@@ -518,6 +522,8 @@ function App() {
                 t("Conecta tu entorno y elige cómo trabaja Hapic.")
               ) : page === "Herramientas" ? (
                 t("Conexiones que amplían lo que puede hacer tu equipo.")
+              ) : page === "Delegaciones" ? (
+                "Sigue el trabajo que tus agentes se encargan entre sí."
               ) : agent ? (
                 <Badge status={runtime?.status || agent.status} />
               ) : (
@@ -990,6 +996,7 @@ function App() {
                 </div>
               </div>
             ) : null}
+            {page === "Delegaciones" ? <DelegationsPanel projects={projects} agents={state.agents} selectedProjectId={projectId} onSelectProject={setProjectId} onOpenAgent={(id) => { const selected = state.agents.find((item) => item.id === id); if (selected) openAgent(selected); }} /> : null}
             {page === "Herramientas" ? <ToolsPanel projects={projects} agents={state.agents} selectedProjectId={projectId} onSelectProject={setProjectId} /> : null}
             {page === "Configuración" ? (
               <div className="settings-layout">

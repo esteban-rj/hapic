@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlparse, urlencode
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Request, Response
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -88,8 +88,18 @@ def create_app(data_dir: Path | None = None, runtime=None):
 
     @mcp.tool()
     def list_project_agents(ctx: Context) -> dict:
-        """Lista los agentes del proyecto autorizado, incluidos los arquitectos disponibles para vincular un coder."""
+        """Lista agentes del proyecto con rol y delegation_contract: owns, delegate_when, required_inputs, returns y limitations. Elige destinatario por su contrato; planner_id identifica al arquitecto vinculado de un coder."""
         return service.tool(scope(ctx), "list_project_agents", {})
+
+    @mcp.tool()
+    def delegate_task(agent_id: str, task: str, request_id: str, ctx: Context, context: str = "", expected_result: str = "") -> dict:
+        """Delega directamente a otro agente del mismo proyecto según su delegation_contract. Incluye required_inputs en context y entregables/criterios en expected_result. request_id estable evita duplicados. Consulta get_task_status para obtener el resultado asíncrono; no comparte memoria ni acceso a workspaces."""
+        return service.tool(scope(ctx), "delegate_task", {"agent_id": agent_id, "task": task, "request_id": request_id, "context": context, "expected_result": expected_result})
+
+    @mcp.tool()
+    def get_task_status(task_id: str, ctx: Context) -> dict:
+        """Consulta estado y resultado persistente de una delegación en la que participas."""
+        return service.tool(scope(ctx), "get_task_status", {"task_id": task_id})
 
     @mcp.tool()
     def create_specialist_agent(name: str, template: str, ctx: Context, planner_id: str | None = None) -> dict:
@@ -148,6 +158,7 @@ def create_app(data_dir: Path | None = None, runtime=None):
 
     @asynccontextmanager
     async def lifespan(app):
+        store.execute("UPDATE delegated_tasks SET status='failed',error='La plataforma se reinició durante la delegación. Comprueba la actividad antes de reintentar.',updated_at=? WHERE status IN ('queued','running')", (now(),))
         # Interrupted provisioning becomes retryable after a control-plane restart.
         store.execute("UPDATE agents SET status='pending',error='La plataforma se reinició durante la provisión. Comprueba el runtime y reintenta.' WHERE status='provisioning'")
         async with mcp.session_manager.run():
@@ -337,6 +348,15 @@ def create_app(data_dir: Path | None = None, runtime=None):
     def events(agent_id: str):
         service.agent(agent_id)
         return [localize_fields(event, "message") for event in store.all("SELECT * FROM events WHERE agent_id=? ORDER BY id DESC LIMIT 100", (agent_id,))]
+
+    @app.get("/api/projects/{project_id}/delegations")
+    def project_delegations(project_id: str, status: str | None = None, agent_id: str | None = None,
+                            limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0)):
+        return service.project_delegations(project_id, status, agent_id, limit, offset)
+
+    @app.get("/api/projects/{project_id}/delegations/{task_id}")
+    def project_delegation(project_id: str, task_id: str):
+        return service.project_delegation(project_id, task_id)
 
     @app.post("/api/agents/{agent_id}/chat")
     async def chat(agent_id: str, body: ChatInput):

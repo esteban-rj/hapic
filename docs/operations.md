@@ -92,6 +92,7 @@ Los PNG se guardan en el workspace del agente y se incluyen en la copia completa
 | Credencial pendiente | Configúrala en el formulario dedicado o en el entorno del servidor |
 | OpenAI rechazó la API key de inferencia | Guarda una key válida en Configuración o actualízala en el entorno; reinicia el runtime para que reciba la nueva credencial |
 | Hermes rechazó la autenticación de su API | Reinicia el runtime para sincronizar su token interno de acceso; es independiente de la key de OpenAI |
+| OpenAI rechazó la credencial (401) | Actualiza la API key y recrea los runtimes para que reciban la credencial nueva. Puedes reemplazarla desde el formulario de Configuración; la clave guardada tiene prioridad sobre el entorno |
 | API Hermes lista, turno rechazado | Comprueba acceso al modelo, permisos y saldo de OpenAI; revisa el HTTP informado |
 | Provisión interrumpida | Consulta actividad y runtime; vuelve a solicitar el inicio desde la UI |
 | Archivo ausente del explorador | Comprueba el workspace del agente, el tipo de archivo y si está protegido |
@@ -99,6 +100,8 @@ Los PNG se guardan en el workspace del agente y se incluyen en la copia completa
 Los fallos del chat muestran la causa informada por Hermes, incluso cuando llegan dentro de una respuesta HTTP correcta. La misma causa se guarda en Actividad, con claves y tokens redactados y una longitud limitada. Si Hermes no incluye detalles, se indica expresamente; una cancelación se distingue de un fallo.
 
 Los logs de Docker pueden contener información sensible. Revísalos localmente y redacta cualquier dato privado antes de compartirlos.
+
+Hermes puede responder HTTP 200 con un turno `failed` por un error de autenticación del proveedor. Hapic reconoce ese caso y muestra una indicación para corregir la credencial, sin copiar el texto del proveedor ni fragmentos de la key. Que exista una variable `OPENAI_API_KEY` o que la API Hermes esté lista no demuestra que OpenAI acepte esa credencial; no reutilices automáticamente una clave heredada de un entorno de herramientas sin comprobar su validez para esta instalación.
 
 ## Validación sin consumo de API
 

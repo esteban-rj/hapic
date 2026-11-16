@@ -2,7 +2,7 @@
 
 **Tu equipo, ampliado.** Organiza tus proyectos y reúne especialistas de IA con memoria, archivos y herramientas propias. UX, diseño, arquitectura, código y contenido, desde un mismo lugar.
 
-Explora la [demo animada e interactiva de Hapic](https://esteban-rj.github.io/hapic/) o la [galería del dashboard](docs/dashboard.md). La demo permite explorar proyectos, especialistas, archivos y herramientas con datos ilustrativos, pausa del recorrido, modo claro/oscuro y un botón con bandera para alternar entre español e inglés. La preferencia de idioma se conserva al recargar. Incluye una conversación animada con un Community Manager: solicitud, contexto, actividad y un calendario editorial de ejemplo para revisar, disponible en ambos idiomas y temas. El recorrido permite pausar o repetir la conversación y muestra la secuencia completa al preferir movimiento reducido. No ejecuta agentes ni conecta servicios. Las capturas muestran la interfaz real con datos de demostración; cada instalación empieza con su propio espacio vacío.
+[Visita la página de Hapic →](https://esteban-rj.github.io/hapic/)
 
 Hapic es un MVP local en español e inglés basado en agentes Hermes persistentes, con interfaz React/Vite, backend FastAPI y metadatos SQLite. Los cinco bocetos iniciales se conservan en [docs/mockups](docs/mockups).
 
@@ -82,6 +82,20 @@ Crea primero el arquitecto y después el coder, seleccionando ese arquitecto del
 `generate_project_image` utiliza la key guardada y OpenAI Images. El modelo de imagen predeterminado es `gpt-image-2.5-flare`, configurable en el servidor con `HAPIC_IMAGE_MODEL`; es independiente del modelo conversacional. Cada llamada genera una imagen y puede tener coste. El PNG se guarda primero en `agents/<id>/workspace/images/`, luego se registra un adjunto del chat. Se conserva incluso si falla la respuesta final de Hermes. Las imágenes tienen vista previa y descarga en **Archivos**. No se descargan URLs arbitrarias ni se depende de enlaces temporales del proveedor.
 
 El modelo inicial es `gpt-6.1-sol` y el esfuerzo `xhigh`. Ambos se pueden elegir mediante selectores para agentes nuevos en Configuración y para un agente existente desde el compositor. El selector de modelos ofrece nombres legibles y conserva los identificadores personalizados ya guardados. Los cambios por agente se envían en el siguiente turno mediante `provider: openai-api` y `model_options.reasoning_effort`. No se usa la suscripción ni se importan credenciales de Codex.
+
+## Delegaciones entre agentes
+
+Los especialistas pueden encargar trabajo directamente a un colega del mismo proyecto. Cada perfil define sus responsabilidades, el contexto que necesita y los entregables que devuelve; las memorias y los workspaces siguen siendo privados.
+
+Abre **Delegaciones** y elige un proyecto para consultar quién envía y recibe cada tarea, filtrar por agente o estado y revisar contexto, resultados y errores. Puedes copiar la respuesta y abrir la conversación de los participantes. La vista se actualiza cada seis segundos mientras está visible y conserva el historial entre sesiones.
+
+La ejecución requiere una API key de OpenAI y el runtime Docker del destinatario iniciado; puede generar consumo de API. Consultar el historial no ejecuta agentes. No hay reintentos ni continuación automática del remitente: este recupera el resultado con `get_task_status`. Una tarea finalizada confirma que terminó el turno; la respuesta puede indicar trabajo parcial o bloqueado. Se rechazan duplicados con contenido distinto, autodelegaciones, otros proyectos, ciclos y más de cuatro niveles. Tras un reinicio, las tareas interrumpidas quedan fallidas para su revisión.
+
+Specialists can delegate work directly to a colleague in the same project, using role contracts that define responsibilities, required context and expected deliverables. Memories and workspaces remain private. Open **Delegaciones** to filter by project, participant or status, inspect context, results and errors, copy responses and open participant conversations. The visible panel refreshes every six seconds and keeps its history across sessions.
+
+Execution requires an OpenAI API key and the recipient's running Docker runtime, and may incur API usage. Reading history does not run agents. There are no automatic retries or sender continuation; the sender retrieves results with `get_task_status`. A completed turn may report partial or blocked work. The server rejects conflicting duplicate requests, self-delegation, cross-project requests, cycles and chains beyond four levels. Interrupted tasks are marked failed after a restart for review.
+
+Consulta el [panel de delegaciones](docs/dashboard.md#sigue-las-delegaciones-de-tu-equipo), la [API de colaboración](docs/api.md#delegación-directa) y la [arquitectura](docs/architecture.md#colaboración-directa-entre-agentes).
 
 ## Ejecutar con Docker Compose
 

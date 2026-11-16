@@ -44,6 +44,13 @@ class Store:
             CREATE TABLE IF NOT EXISTS agents(id TEXT PRIMARY KEY,organization_id TEXT,project_id TEXT REFERENCES projects(id),name TEXT,kind TEXT,template TEXT,model TEXT,effort TEXT,status TEXT,container_id TEXT,error TEXT,created_at TEXT,UNIQUE(project_id,name));
             CREATE UNIQUE INDEX IF NOT EXISTS one_hapic_per_project ON agents(project_id) WHERE kind='hapic';
             CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY AUTOINCREMENT,agent_id TEXT REFERENCES agents(id),role TEXT,content TEXT,source TEXT,created_at TEXT);
+            CREATE TABLE IF NOT EXISTS delegated_tasks(
+                id TEXT PRIMARY KEY,project_id TEXT NOT NULL REFERENCES projects(id),
+                sender_id TEXT NOT NULL REFERENCES agents(id),recipient_id TEXT NOT NULL REFERENCES agents(id),
+                request_id TEXT NOT NULL,task TEXT NOT NULL,context TEXT NOT NULL,expected_result TEXT NOT NULL,
+                parent_id TEXT REFERENCES delegated_tasks(id),status TEXT NOT NULL,result TEXT,error TEXT,
+                created_at TEXT NOT NULL,updated_at TEXT NOT NULL,UNIQUE(sender_id,request_id));
+            CREATE INDEX IF NOT EXISTS delegated_tasks_project_created ON delegated_tasks(project_id,created_at DESC,id DESC);
             CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY AUTOINCREMENT,agent_id TEXT REFERENCES agents(id),message TEXT,created_at TEXT);
             CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT);
             CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,csrf TEXT,created_at TEXT);
