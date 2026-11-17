@@ -1,16 +1,16 @@
 (() => {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  const steps = ['resumen', 'conversacion', 'estructura', 'plantillas', 'archivos', 'herramientas'];
-  const labels = ['Proyectos', 'Conversación', 'Estructura', 'Especialistas', 'Archivos', 'Herramientas'];
+  const steps = ['resumen', 'conversacion', 'plantillas', 'archivos', 'estructura', 'herramientas'];
+  const labels = ['Tu flujo', 'Conversación', 'Equipo', 'Resultados', 'Contexto', 'Herramientas'];
   const content = {
-    resumen: ['Tu espacio de trabajo', 'Estudio Aurora / Resumen', [['Lanzamiento de marca', 'Sofía · Community Manager / Lucía · UX', 'Un proyecto reúne el contexto, los especialistas y sus entregables.'], ['Sitio web corporativo', 'Arquitectura / Código', 'Cada equipo conserva su propio espacio de trabajo.'], ['Español · English', 'El idioma de tu equipo', 'El dashboard guarda tu elección de idioma para la interfaz y las nuevas respuestas. El historial y los archivos existentes conservan su contenido original.']]],
+    resumen: ['Un proyecto. Tu forma de colaborar.', 'Estudio Aurora / Flujos de ejemplo', [['01 · Define el resultado', 'Lanzar una marca', 'Objetivo → responsabilidades → contexto → entregables. El proyecto reúne al equipo y conserva el trabajo.'], ['02 · Conecta responsabilidades', 'UX → Diseño gráfico → Community Manager', 'Ejemplo de reparto: Lucía prepara el brief, Mateo las piezas visuales solicitadas y Sofía el calendario. Los agentes pueden delegarse tareas dentro del proyecto. El remitente consulta los resultados; no continúa automáticamente.'], ['03 · Revisa y continúa', 'Brief, imágenes y calendario', 'Abre los archivos de cada agente y decide el siguiente paso. Hoy se parte de plantillas; crear agentes desde cero y componer flujos con mayor flexibilidad forma parte de la visión. La interfaz y las nuevas respuestas admiten español e inglés; el historial y los archivos conservan su idioma original.']]],
     estructura: ['Todo tiene su lugar', 'Estudio Aurora / Lanzamiento de marca', [['▾ Sofía · Community Manager', 'hermes/ · Perfil y memoria', 'hermes/\n  memories/MEMORY.md\nworkspace/\n  calendario/editorial.md'], ['▾ Lucía · UX', 'Perfil y archivos independientes', 'hermes/\n  memories/MEMORY.md\nworkspace/\n  brief.md']]],
     plantillas: ['Prepara tu equipo', 'Cinco perfiles con método y entregables', [['UX · Diseño gráfico', 'Briefs, flujos y propuestas visuales', 'Ejemplo UX: brief → flujos → wireframes → revisión de accesibilidad.'], ['Arquitecto · Coder', 'Del plan compartido a la implementación', 'El arquitecto publica el plan y el coder consulta su versión antes de escribir.'], ['Community Manager', 'Estrategia y contenido', 'Prepara calendarios, copys y guiones con contexto y archivos propios.'], ['Colaboración directa · Datos de ejemplo', 'Lucía · UX → Mateo · Diseño gráfico · Finalizada', 'Tarea: revisar la jerarquía visual.\nContexto: un formulario con dos acciones principales.\nResultado esperado: recomendación priorizada y utilizable.\nRespuesta de Mateo: conserva una acción principal y deja la secundaria como enlace.\nEstado del trabajo: revisión completada; validación con usuarios pendiente.\nConsulta el historial por proyecto, participante o estado; se actualiza cada seis segundos. Ejecutar delegaciones requiere API key de OpenAI y runtime Docker del destinatario, y puede generar consumo de API. El remitente consulta el resultado; no continúa automáticamente. Los workspaces y las memorias siguen siendo privados.']]],
     archivos: ['Resultados que permanecen', 'Sofía · Archivos generados · Accesos directos', [['editorial.md', 'Abrir calendario generado ↗', '# Calendario editorial\nLunes · Presentación de marca\nMiércoles · Detrás de cámaras\nViernes · Preguntas de la comunidad'], ['brief.md', 'Abrir brief generado ↗', '# Brief de ejemplo\nObjetivo: presentar la nueva marca.\nAudiencia: comunidad del estudio.\nTono: cercano y claro.']]],
     herramientas: ['Conecta tu contexto', 'Herramientas del proyecto', [['YouTube · Solo lectura', 'Vídeos, comentarios y métricas', 'Se configura OAuth en el servidor y el usuario autoriza su canal. Después puede asignarlo a los agentes del proyecto.'], ['HeyGen · ElevenLabs', 'Integraciones previstas', 'Estas conexiones todavía no están disponibles.']]]
   };
   const english = {
-    resumen: ['Your workspace', 'Aurora Studio / Overview', [['Brand launch', 'Sofía · Community Manager / Lucía · UX', 'A project brings together context, specialists and their deliverables.'], ['Corporate website', 'Architecture / Code', 'Each team keeps its own workspace.'], ['Español · English', 'Your team’s language', 'The dashboard saves your language choice for its interface and new responses. Existing history and files keep their original content.']]],
+    resumen: ['One project. Your way to collaborate.', 'Aurora Studio / Sample workflows', [['01 · Define the result', 'Launch a brand', 'Goal → responsibilities → context → deliverables. The project brings the team together and keeps its work.'], ['02 · Connect responsibilities', 'UX → Graphic design → Community Manager', 'Sample division of work: Lucía prepares the brief, Mateo the requested visuals and Sofía the calendar. Agents can delegate within the project. The sender retrieves results; it does not automatically continue.'], ['03 · Review and continue', 'Brief, images and calendar', 'Open each agent’s files and decide the next step. Today agents start from templates; agents from scratch and more flexible workflow composition are part of the vision. The UI and new responses support Spanish and English; history and existing files keep their original language.']]],
     estructura: ['Everything has a place', 'Aurora Studio / Brand launch', [['▾ Sofía · Community Manager', 'hermes/ · Profile and memory', 'hermes/\n  memories/MEMORY.md\nworkspace/\n  calendario/editorial.md'], ['▾ Lucía · UX', 'Independent profile and files', 'hermes/\n  memories/MEMORY.md\nworkspace/\n  brief.md']]],
     plantillas: ['Prepare your team', 'Five profiles with methods and deliverables', [['UX · Graphic design', 'Briefs, flows and visual proposals', 'UX example: brief → flows → wireframes → accessibility review.'], ['Architect · Coder', 'From a shared plan to implementation', 'The architect publishes the plan and the coder checks its version before writing.'], ['Community Manager', 'Strategy and content', 'Prepare calendars, copy and scripts with dedicated context and files.'], ['Direct collaboration · Sample data', 'Lucía · UX → Mateo · Graphic design · Completed', 'Task: review the visual hierarchy.\nContext: a form with two primary actions.\nExpected result: a prioritized, usable recommendation.\nMateo’s response: keep one primary action and make the secondary action a link.\nWork outcome: review completed; user validation pending.\nFilter history by project, participant or status; it refreshes every six seconds. Execution requires an OpenAI API key and the recipient’s running Docker runtime, and may incur API usage. The sender retrieves the result; there is no automatic continuation. Workspaces and memories remain private.']]],
     archivos: ['Results that last', 'Sofía · Generated files · Shortcuts', [['editorial.md', 'Open generated calendar ↗', '# Editorial calendar\nMonday · Brand introduction\nWednesday · Behind the scenes\nFriday · Community questions'], ['brief.md', 'Open generated brief ↗', '# Sample brief\nGoal: introduce the new brand.\nAudience: the studio community.\nTone: friendly and clear.']]],
@@ -23,6 +23,7 @@
   let chatStage = reduced.matches ? 4 : 0;
   let preparationStage = 4;
   let selectedPreparation;
+  let preparationOpen = false;
   const demo = document.createElement('div');
   demo.className = 'demo';
   demo.innerHTML = '<div class="demo-top"><strong>H / Hapic</strong><small>DEMO ILUSTRATIVA · SIN SERVICIOS</small></div><div class="demo-layout"><nav class="demo-sidebar" aria-label="Plataforma de demostración"></nav><div class="demo-content"></div></div><div class="demo-progress" aria-hidden="true"><span></span></div>';
@@ -153,7 +154,7 @@
     const heading = document.createElement('h3'); heading.textContent = title;
     const description = document.createElement('p'); description.textContent = subtitle;
     body.append(heading, description);
-    if (key === 'plantillas') renderPreparation(body);
+
     cards.forEach(([name, summary, detail]) => {
       const card = document.createElement('button'); card.type = 'button'; card.className = 'demo-card';
       card.textContent = name;
@@ -163,11 +164,18 @@
       card.addEventListener('click', () => { playing = false; updatePause(); schedule(); panel.hidden = !panel.hidden; card.setAttribute('aria-expanded', String(!panel.hidden)); });
       body.append(card, panel);
     });
+    if (key === 'plantillas') {
+      const details = document.createElement('details'); details.className = 'demo-preparation-details'; details.open = preparationOpen;
+      const summary = document.createElement('summary'); summary.textContent = isEnglish() ? 'Follow sample agent preparation' : 'Ver preparación de un agente de ejemplo';
+      details.append(summary); renderPreparation(details);
+      details.addEventListener('toggle', () => { preparationOpen = details.open; });
+      body.append(details);
+    }
     const tag = document.createElement('span'); tag.className = 'demo-tag'; tag.textContent = isEnglish() ? 'Sample data' : 'Datos de ejemplo'; body.append(tag);
     }
     demo.querySelectorAll('[data-demo-step]').forEach((button, index) => {
       button.setAttribute('aria-pressed', String(button.dataset.demoStep === key));
-      button.textContent = isEnglish() ? ['Projects', 'Conversation', 'Structure', 'Specialists', 'Files', 'Tools'][index] : labels[index];
+      button.textContent = isEnglish() ? ['Workflow', 'Conversation', 'Team', 'Results', 'Context', 'Tools'][index] : labels[index];
     });
     demo.querySelector('.demo-top small').textContent = isEnglish() ? 'ILLUSTRATIVE DEMO · NO SERVICES' : 'DEMO ILUSTRATIVA · SIN SERVICIOS';
     demo.querySelector('nav').setAttribute('aria-label', isEnglish() ? 'Platform demo' : 'Plataforma de demostración');
@@ -188,6 +196,6 @@
     if (event.isTrusted) { playing = false; updatePause(); schedule(); }
   }));
   document.addEventListener('hapic-language-change', () => select(active));
-  window.hapicDemo = { select };
+  window.hapicDemo = { select, pause() { playing = false; updatePause(); schedule(); } };
   updatePause(); select(active);
 })();

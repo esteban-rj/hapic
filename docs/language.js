@@ -5,13 +5,17 @@
   const attributes = [
     [document.querySelector('.brand'), 'aria-label', 'Hapic, inicio', 'Hapic, home'],
     [document.querySelector('.tour-nav'), 'aria-label', 'Recorrido por Hapic', 'Hapic tour'],
-    [document.querySelector('meta[name="description"]'), 'content', document.querySelector('meta[name="description"]').content, 'Discover Hapic: projects with context, AI specialists, persistent memory and files, direct delegations, and tools for your team.']
+    [document.querySelector('.workflow-options'), 'aria-label', 'Ejemplos de flujo', 'Sample workflows'],
+    [document.querySelector('meta[name="description"]'), 'content', document.querySelector('meta[name="description"]').content, 'Hapic’s purpose is to create personalized agent workflows. Explore how to connect responsibilities, context, tools and deliverables around your project.']
   ];
+  const images = Array.from(document.querySelectorAll('[data-alt-en]'));
+  const spanishAlt = new Map(images.map(image => [image, image.alt]));
   function apply(language) {
     document.documentElement.lang = language;
     elements.forEach(element => { element.innerHTML = language === 'en' ? element.dataset.en : spanish.get(element); });
+    images.forEach(image => { image.alt = language === 'en' ? image.dataset.altEn : spanishAlt.get(image); });
     attributes.forEach(([element, name, es, en]) => element.setAttribute(name, language === 'en' ? en : es));
-    document.title = language === 'en' ? 'Hapic · Your idea already has a team' : 'Hapic · Tu idea ya tiene equipo';
+    document.title = language === 'en' ? 'Hapic · Your way of working, in an agent workflow' : 'Hapic · Tu forma de trabajar, en un flujo de agentes';
     button.textContent = language === 'en' ? '🇪🇸 ES' : '🇬🇧 EN';
     button.setAttribute('aria-label', language === 'en' ? 'Cambiar a español' : 'Switch to English');
     button.lang = language === 'en' ? 'es' : 'en';

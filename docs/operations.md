@@ -1,6 +1,6 @@
 # Operación local
 
-Consulta primero el [README](../README.md) para instalar dependencias y arrancar la plataforma.
+Consulta la [guía de uso y referencia](guide.md) para instalar dependencias y el [README](../README.md) para conocer los flujos de trabajo y el arranque con Docker. Los [mapas de arquitectura](architecture.md#mapas-de-la-arquitectura-actual) muestran contenedores, puertos, comunicación y almacenamiento.
 
 ## Arranque nativo en macOS y Linux
 

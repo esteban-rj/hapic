@@ -1,20 +1,174 @@
 # Arquitectura
 
-Hapic es un control de gestión local para agentes Hermes persistentes. La versión inicial separa la interfaz, los metadatos de la plataforma y los procesos de los agentes.
+Hapic es un control de gestión local para agentes Hermes persistentes. La versión actual separa la interfaz, los metadatos de la plataforma y los procesos de los agentes. Esta es la base actual para la visión de flujos de agentes personalizados: hoy hay agentes creados desde plantillas, delegaciones directas y planes compartidos; no hay un editor visual ni un motor general de flujos.
+
+[← Propuesta y casos de uso](../README.md) · [Guía de uso](guide.md) · [Operación](operations.md) · [API y MCP](api.md)
+
+## Mapas de la arquitectura actual
+
+Los mapas describen el código de este repositorio: `backend/app.py`, `backend/service.py`, `backend/runtime.py`, `backend/storage.py`, `compose.yaml` y `Dockerfile`. Las flechas indican solicitudes o acceso a datos, no pasos que se encadenen automáticamente.
+
+### 1. Comunicación entre componentes
 
 ```mermaid
-flowchart LR
-    UI[React / Vite] -->|HTTP del mismo origen| API[FastAPI]
-    API --> DB[(SQLite de plataforma)]
-    API --> FS[Perfiles y workspaces]
-    API -->|Docker SDK| Docker[Motor Docker]
-    Docker --> Hapic[Hermes: Hapic]
-    Docker --> UX[Hermes: especialista UX]
-    Hapic -->|Responses| OpenAI[OpenAI API]
-    UX -->|Responses| OpenAI
-    Hapic -->|MCP con token propio| API
-    UX -->|MCP con token propio| API
+flowchart TB
+    User[Operador local] --> UI[React / Vite en el navegador]
+    UI -->|HTTP mismo origen /api/*| API[FastAPI / backend/app.py]
+    API --> SVC[Service / permisos y herramientas]
+    SVC --> DB[(platform.db / SQLite)]
+    SVC --> FS[Perfiles, planes y workspaces]
+    SVC --> RT[DockerRuntime]
+    RT -->|Docker SDK / ciclo de vida| Engine[Motor Docker]
+    Engine -.->|crea un contenedor por agente| Hermes[Hermes / gateway y API HTTP]
+    RT -->|POST /v1/responses y GET /health/detailed| Hermes
+    Hermes -->|MCP /mcp/ con token de agente| API
+    Hermes -->|inferencia / Responses| OpenAI[OpenAI API]
+    SVC -->|Images API| OpenAI
+    SVC --> YT[YouTube / OAuth y consultas]
+    YT -->|HTTPS / solo lectura del canal autorizado| Google[Google APIs]
 ```
+
+FastAPI sirve el frontend compilado y la API en el mismo origen. La UI no llama directamente a Hermes, al motor Docker ni a Google. La inferencia sale desde Hermes a OpenAI; la generación de imágenes sale desde el backend. Los tokens de API Hermes y MCP son distintos y propios de cada agente.
+
+### 2. Contenedores, red y puertos con Compose
+
+```mermaid
+flowchart TB
+    Browser[Navegador del operador]
+    OpenAI[OpenAI API / servicio externo]
+    Google[Google APIs / servicio externo]
+    subgraph Host[Equipo local / motor Docker]
+        Socket[Socket del motor Docker]
+        Data[Directorio .hapic del host]
+        subgraph Network[Red bridge hapic-net]
+            Control["hapic:8000 / FastAPI + build React"]
+            AgentA["hapic-AGENT_A:8642 / Hermes A"]
+            AgentB["hapic-AGENT_B:8642 / Hermes B"]
+        end
+        Socket -.->|provisión dinámica| AgentA
+        Socket -.->|provisión dinámica| AgentB
+        Control -->|Docker SDK / socket montado| Socket
+        Control -->|Responses y salud autenticadas| AgentA
+        Control -->|Responses y salud autenticadas| AgentB
+        AgentA -->|MCP http://hapic:8000/mcp/| Control
+        AgentB -->|MCP http://hapic:8000/mcp/| Control
+        Data -.->|directorio completo montado en /data| Control
+        Data -.->|solo perfil A y workspace A| AgentA
+        Data -.->|solo perfil B y workspace B| AgentB
+    end
+    Browser -->|127.0.0.1:8000 publicado en el host| Control
+    AgentA -->|HTTPS / inferencia| OpenAI
+    AgentB -->|HTTPS / inferencia| OpenAI
+    Control -->|HTTPS / imágenes| OpenAI
+    Control -->|HTTPS / OAuth y lectura| Google
+```
+
+`compose.yaml` declara únicamente el servicio `hapic` y la red. Los agentes se crean dinámicamente con Docker SDK, desde `nousresearch/hermes-agent:stable` o la imagen configurada; no son servicios declarados en Compose ni contenedores anidados dentro de Hapic. Son contenedores hermanos en el mismo motor.
+
+| Elemento | Compose | Arranque nativo |
+| --- | --- | --- |
+| Control de gestión | Contenedor `hapic`, puerto interno 8000 | Proceso Python en el host, puerto 8000 |
+| Entrada del navegador | `127.0.0.1:8000` | `127.0.0.1:8000` |
+| API de cada Hermes | Nombre del contenedor en `hapic-net`, puerto 8642; sin publicación en el host | Puerto aleatorio publicado solo en `127.0.0.1`, dirigido al 8642 del agente |
+| Retorno MCP desde Hermes | `http://hapic:8000/mcp/` | `http://host.docker.internal:8000/mcp/` |
+| Acceso al motor | Socket montado en el control de gestión | Endpoint del contexto Docker activo, resuelto por el lanzador |
+| Datos de plataforma | Directorio del host montado en `/data` | `HAPIC_DATA_DIR` en el host |
+
+Solo el control de gestión recibe acceso al motor. Cada agente recibe dos montajes de datos, `/opt/data` y `/workspace`, y sus credenciales de ejecución; no recibe el socket ni todo el directorio del proyecto. El motor y el administrador del host son parte del perímetro de confianza.
+
+### 3. Persistencia y límites entre agentes
+
+```mermaid
+flowchart TB
+    Control[Control de gestión / Service]
+    subgraph Disk[Almacenamiento local .hapic]
+        DB[(platform.db / proyectos, agentes, mensajes y tareas)]
+        Secrets[secrets / credenciales y tokens cifrados]
+        Plan[workspace/plans/ARCHITECT_ID/plan.md]
+        HomeA[agents/A/hermes / perfil, memorias y state.db]
+        WorkA[agents/A/workspace / entregables e imágenes]
+        HomeB[agents/B/hermes / perfil, memorias y state.db]
+        WorkB[agents/B/workspace / entregables e imágenes]
+    end
+    A[Hermes A] ---|montaje /opt/data| HomeA
+    A ---|montaje /workspace| WorkA
+    B[Hermes B] ---|montaje /opt/data| HomeB
+    B ---|montaje /workspace| WorkB
+    Control --> DB
+    Control --> Secrets
+    Control --> Plan
+    Control --> WorkA
+    Control --> WorkB
+    A -->|MCP / publicar plan si es arquitecto| Control
+    B -->|MCP / leer plan si es coder vinculado| Control
+```
+
+El plan del arquitecto se comparte mediante herramientas autorizadas; no se monta como una carpeta compartida en todos los agentes. La escritura del coder comprueba que haya leído la revisión actual. Delegar transmite el contexto explícito de la tarea, sin abrir automáticamente la memoria ni el workspace del destinatario. El estado se guarda localmente, mientras que la inferencia transmite a OpenAI los mensajes y el contexto necesario.
+
+### 4. De la conversación a un archivo
+
+```mermaid
+sequenceDiagram
+    actor User as Operador
+    participant UI as React
+    participant API as FastAPI / Service
+    participant DB as SQLite y archivos
+    participant H as Hermes del agente
+    participant OAI as OpenAI
+    User->>UI: Objetivo, contexto y resultado esperado
+    UI->>API: POST /api/agents/ID/chat (sesión y CSRF)
+    API->>API: Validar acceso, credencial y bloqueo del agente
+    API->>DB: Registrar turno e identidad de solicitud
+    API->>H: POST /v1/responses (token API, instrucciones, stream=false)
+    H->>OAI: Inferencia con herramientas autorizadas
+    OAI-->>H: Solicitud de herramienta
+    H->>API: MCP project_write_file (token de agente)
+    API->>API: Validar herramienta, alcance y ruta
+    API->>DB: Guardar en el workspace propio
+    API-->>H: Ruta y resultado real
+    H->>OAI: Continuar el turno con el resultado
+    OAI-->>H: Respuesta final
+    H-->>API: Resultado completo del turno
+    API->>DB: Guardar respuesta visible y actividad
+    API-->>UI: Respuesta completa del turno
+    User->>UI: Abrir Archivos y seleccionar entregable
+    UI->>API: Consultar archivos y contenido autenticado
+    API-->>UI: Vista previa del archivo guardado
+```
+
+El diagrama representa un turno que utiliza escritura de archivos; no todos los turnos la necesitan. El chat espera la respuesta completa, sin streaming de tokens. Un adjunto de imagen puede persistir aunque falle la respuesta final de Hermes.
+
+### 5. Delegación directa, mediada por la plataforma
+
+```mermaid
+sequenceDiagram
+    participant A as Hermes emisor
+    participant API as MCP / Service
+    participant DB as SQLite delegated_tasks
+    participant Worker as Hilo del backend
+    participant B as Hermes destinatario
+    participant UI as Panel Delegaciones
+    A->>API: delegate_task(destinatario, tarea, contexto, resultado esperado)
+    API->>API: Validar proyecto, solicitud y límites del grafo
+    API->>DB: Crear tarea queued con request_id idempotente
+    API-->>A: ID de tarea
+    API->>Worker: Iniciar ejecución en segundo plano
+    Worker->>DB: Reclamar tarea y marcar running
+    Worker->>Worker: Comprobar credencial, runtime y bloqueo del destinatario
+    Worker->>B: /v1/responses con contexto explícito y herramientas propias
+    B-->>Worker: Respuesta completa o error
+    Worker->>DB: Guardar completed o failed y resultado
+    A->>API: get_task_status(ID)
+    API->>DB: Leer tarea si es participante
+    API-->>A: Estado y resultado disponibles
+    UI->>API: GET delegations del proyecto (cada 6 s, mientras visible)
+    API->>DB: Leer historial con sesión y pertenencia
+    API-->>UI: Participantes, estado, detalle y resultados
+```
+
+No hay conexión HTTP directa entre contenedores de agentes ni una inferencia adicional del orquestador para mediar la tarea. La consulta del emisor puede devolver una tarea aún pendiente. El backend no reanuda automáticamente al emisor ni reintenta tareas. `completed` confirma que terminó el turno; su respuesta puede indicar trabajo parcial o bloqueado. Se validan permisos y límites estructurales; los requisitos semánticos del contrato son instrucciones para los agentes, no un esquema validado por el backend.
+
+En el arranque de la plataforma, las delegaciones interrumpidas quedan fallidas. El worker actual es un hilo en el proceso del backend, no una cola externa ni un motor durable de workflows.
 
 ## Componentes
 

@@ -1,8 +1,20 @@
-# Hapic · Tu siguiente idea ya tiene equipo
+# Hapic · Tu trabajo, tu flujo de agentes
 
-Un espacio para organizar tus proyectos y trabajar con especialistas de IA que conservan su memoria, sus archivos y un propósito definido.
+Hapic nace para crear flujos de agentes personalizados: responsabilidades, contexto, herramientas y entregables conectados alrededor de un proyecto. Las plantillas actuales ayudan a empezar; la visión es definir tu propio equipo y su forma de colaborar.
 
 [Abrir el recorrido visual →](https://esteban-rj.github.io/hapic/)
+
+## Empieza por el flujo de trabajo
+
+El objetivo determina el equipo. Para un sitio web, un arquitecto publica el plan y el coder vinculado consulta su revisión antes de escribir. Para un lanzamiento, UX, diseño y contenido pueden repartirse responsabilidades mediante delegaciones. Revisa cada resultado y decide cómo continuar: el remitente consulta la tarea y no se reanuda automáticamente.
+
+Hoy los perfiles se crean desde cinco plantillas. Crear agentes desde cero con rol, instrucciones y herramientas propios y componer flujos con más flexibilidad forma parte de la evolución prevista. No hay un editor visual de flujos en esta versión.
+
+Hapic's purpose is personalized agent workflows, with templates as a starting point. Today, agents are created from five templates and can delegate within a project. The sender retrieves results and does not automatically resume. Agents from scratch and more flexible workflow composition are planned; there is no visual workflow editor in this version.
+
+![Recorrido real por el resumen, los proyectos y los agentes](media/equipo.gif)
+
+*Interfaz real con datos de ejemplo. [Imagen sin movimiento](media/equipo.jpg) · [Contexto de la captura](media/README.md).*
 
 ## Todos tus proyectos. Una sola perspectiva.
 
@@ -58,6 +70,10 @@ Briefs, planes, código, imágenes y calendarios tienen un espacio propio. La pe
 
 The **Files** tab lists shortcuts to the selected agent's saved deliverables. Open documents for preview, or preview and download images. Architects also see their own published plan; internal folders, profiles and memories are excluded.
 
+![Abrir un calendario de Sofía y consultar el brief de Lucía](media/entregables.gif)
+
+*Documentos preparados para la captura, sin inferencia. [Imagen sin movimiento](media/entregables.jpg).*
+
 ![Hapic: el trabajo toma forma en archivos](screenshots/hapic-entregables.jpg)
 
 [Ver la captura original completa del explorador](screenshots/dashboard-archivos.jpg)
@@ -90,7 +106,7 @@ Interfaz real de este repositorio, capturada el 10 de noviembre de 2026 en una v
 
 YouTube es de solo lectura; la publicación sigue pendiente. Los agentes pueden delegarse tareas directamente y consultar los resultados; el panel **Delegaciones** permite seguir ese trabajo. El Coder entrega código y pruebas en archivos. La conversación y la ejecución de tareas delegadas requieren configurar OpenAI e iniciar el runtime Docker del agente destinatario.
 
-[Recorrido visual](https://esteban-rj.github.io/hapic/) · [README](../README.md) · [Configuración de YouTube](youtube.md) · [Arquitectura](architecture.md)
+[Recorrido visual](https://esteban-rj.github.io/hapic/) · [README](../README.md) · [Configuración de YouTube](youtube.md) · [Mapas de arquitectura](architecture.md#mapas-de-la-arquitectura-actual)
 
 ## Sigue la preparación de cada agente
 

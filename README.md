@@ -1,191 +1,146 @@
 # Hapic
 
-**Tu equipo, ampliado.** Organiza tus proyectos y reúne especialistas de IA con memoria, archivos y herramientas propias. UX, diseño, arquitectura, código y contenido, desde un mismo lugar.
+### Tu forma de trabajar. Un flujo de agentes para hacerla avanzar.
 
-[Visita la página de Hapic →](https://esteban-rj.github.io/hapic/)
+Hapic nace para **crear flujos de agentes personalizados alrededor de tus proyectos**: decidir quién se ocupa de cada parte, qué contexto necesita, qué herramientas utiliza y qué entrega al siguiente. Un espacio donde las ideas se convierten en trabajo que puedes seguir y revisar.
 
-Hapic es un MVP local en español e inglés basado en agentes Hermes persistentes, con interfaz React/Vite, backend FastAPI y metadatos SQLite. Los cinco bocetos iniciales se conservan en [docs/mockups](docs/mockups).
+Las plantillas son el punto de partida. La visión es que construyas tu propio equipo y su forma de colaborar.
 
-## Documentación
+**[Explora la demo interactiva →](https://esteban-rj.github.io/hapic/)** · [Empieza en tu equipo](#empieza-en-tu-equipo) · [English](README.en.md)
 
-- [Demo interactiva](https://esteban-rj.github.io/hapic/): explora la plataforma animada en modo claro u oscuro.
-- [Hapic en imágenes](docs/dashboard.md): proyectos, especialistas, archivos y herramientas.
-- [Arquitectura](docs/architecture.md): componentes, datos, provisión y límites de acceso.
-- [API y MCP](docs/api.md): rutas, sesión local, herramientas y errores.
-- [Operación](docs/operations.md): arranque, credenciales, persistencia, copias y diagnóstico.
-- [YouTube](docs/youtube.md): conexión OAuth, consultas reales y asignación a cualquier agente.
-- [Community Manager e integración social](docs/community-manager.md): perfil disponible y evolución de otras funciones sociales.
-- [Changelog](CHANGELOG.md): versiones y cambios pendientes de publicación.
+![Recorrido real de Hapic: resumen, proyectos y agentes con datos de ejemplo](docs/media/equipo.gif)
 
-## Tu siguiente idea ya tiene equipo
+*Interfaz real, datos de ejemplo. [Ver imagen estática](docs/media/equipo.jpg) · [Qué muestran los GIFs](docs/media/README.md).*
 
-[![Hapic: todos tus proyectos, una sola perspectiva](docs/screenshots/hapic-proyectos.jpg)](docs/dashboard.md)
+## Un objetivo. Varios agentes. Un resultado que puedes revisar.
 
-- **Dale un lugar a cada proyecto.** Reúne su contexto y consulta el estado de tu equipo.
-- **Organiza cada nivel de tu espacio.** Organizaciones, proyectos, agentes y sus carpetas y archivos.
-- **Elige al especialista adecuado.** Parte de cinco perfiles con instrucciones y entregables definidos.
-- **Conserva el resultado.** Revisa los archivos y mantén la memoria de cada agente entre sesiones.
-- **Acerca tus herramientas al equipo.** Asigna YouTube de solo lectura a los agentes que elijas, con un canal autorizado.
+Imagina el lanzamiento de tu producto: una persona define la experiencia, otra prepara las piezas visuales y otra organiza el contenido. Hapic lleva esa forma de repartir el trabajo a un equipo de agentes con contexto, memoria y archivos propios.
 
-La evolución prevista incluye agentes creados desde cero con rol e instrucciones propios, y nuevas conexiones con HeyGen, ElevenLabs y otros servicios.
+| Lo que necesitas | Lo que aporta Hapic |
+| --- | --- |
+| Dar continuidad al trabajo | Agentes persistentes que conservan memoria y archivos entre sesiones. |
+| Repartir responsabilidades | Perfiles con funciones, contexto requerido y entregables definidos. |
+| Conectar el trabajo del equipo | Delegación directa entre agentes del mismo proyecto y un panel para seguirla. |
+| Encontrar lo que se produjo | Accesos a briefs, planes, código, imágenes y calendarios desde cada agente. |
+| Aportar datos a las decisiones | YouTube de solo lectura, asignable a los agentes que elijas. |
 
-[Descubre las pantallas de Hapic →](docs/dashboard.md)
+## Flujos que puedes construir con el equipo actual
 
-## Ejecutar localmente en Windows
+Estas secuencias muestran cómo repartir el trabajo; cada resultado pasa por tu revisión.
 
-Requisitos: Python 3.14, Node 24 y pnpm 11. Docker Desktop con motor Linux se necesita para los agentes, pero no para usar la plataforma, crear organizaciones/proyectos o explorar perfiles.
+| Tu objetivo | Un posible recorrido | Entregables |
+| --- | --- | --- |
+| Lanzar una marca | UX → Diseño gráfico → Community Manager | Brief, piezas visuales y calendario editorial. |
+| Construir un sitio web | Arquitecto / Planner → Coder | Plan compartido, implementación y pruebas en archivos. |
+| Preparar contenido con contexto | YouTube → Community Manager → Diseño gráfico | Análisis del canal autorizado, propuestas de contenido y piezas solicitadas. |
 
-```powershell
-python -m venv --without-pip .venv
-python -m pip --python .venv install -r requirements.lock
-Set-Location frontend
-pnpm install --frozen-lockfile
-pnpm build
-Set-Location ..
-.\scripts\start.ps1
+Los agentes pueden delegar tareas directamente y consultar su resultado. **Delegaciones** permite ver participantes, contexto, respuestas y errores. Los archivos y memorias de cada agente siguen siendo propios; el contexto necesario se incluye en la tarea.
+
+**Hoy:** eliges agentes de cinco plantillas, organizas el equipo por proyecto y utilizas sus delegaciones y herramientas. Las flechas describen una secuencia de trabajo: el remitente consulta el resultado y no continúa automáticamente.
+
+**Hacia dónde va Hapic:** agentes creados desde cero con rol, instrucciones y herramientas propios, y una composición más flexible de flujos personalizados. El editor visual de flujos y esa creación desde cero aún no están implementados.
+
+## Del trabajo de tu equipo a tus entregables
+
+Abre un agente, entra en **Archivos** y revisa sus resultados. El plan del arquitecto puede alimentar al coder vinculado; los documentos e imágenes quedan guardados para continuar después.
+
+![Recorrido real: abrir los archivos de Sofía, consultar un calendario y cambiar al brief de Lucía](docs/media/entregables.gif)
+
+*Documentos de ejemplo preparados para la captura; no son resultados de una ejecución de IA. [Ver imagen estática](docs/media/entregables.jpg).*
+
+## Las plantillas te ayudan a empezar
+
+Parte de un método preparado y elige qué especialistas necesita tu proyecto.
+
+| Punto de partida | Puede ayudarte con |
+| --- | --- |
+| UX | Briefs, flujos, wireframes y accesibilidad. |
+| Diseño gráfico | Dirección visual y generación de imágenes PNG. |
+| Arquitecto / Planner | Arquitectura, contratos y plan compartido para implementación. |
+| Coder | Código y pruebas en archivos, siguiendo el plan de su arquitecto. |
+| Community Manager | Estrategia, calendarios, copys, guiones y análisis de métricas. |
+
+[Explora los perfiles y las pantallas →](docs/dashboard.md) · [Conecta YouTube →](docs/youtube.md)
+
+## Empieza en tu equipo
+
+**Primero explora:** la [demo interactiva](https://esteban-rj.github.io/hapic/) funciona sin instalar nada, sin credenciales y sin llamadas a IA. Tiene español e inglés, temas claro y oscuro y controles de pausa.
+
+**Después úsalo localmente:** con Git y Docker Desktop con motor Linux activos, en macOS o Linux:
+
+```bash
+git clone https://github.com/esteban-rj/hapic.git
+cd hapic
+./scripts/start-docker.sh
 ```
 
-Abre http://127.0.0.1:8000. Los lanzadores mantienen siempre el puerto 8000 y la conexión MCP en la misma instancia. Puedes iniciar directamente con `.\.venv\Scripts\python.exe -m uvicorn backend.app:app --host 127.0.0.1 --port 8000`.
-
-La skill propia del repositorio, [`hapic-execution`](.agents/skills/hapic-execution/SKILL.md), distingue cambios de interfaz, backend y runtime, conserva los datos y concilia solo los contenedores afectados. Invócala con `$hapic-execution`.
-
-Para iterar sobre la UI manteniendo el puerto 8000, inicia el backend y ejecuta `pnpm exec vite build --watch` dentro de `frontend`; recarga la interfaz después de cada compilación. FastAPI sirve el build y la API desde el mismo origen.
-
-## Idioma / Language
-
-Usa el selector de banderas de la barra superior o de **Configuración → Idioma** para elegir **🇪🇸 Español** o **🇺🇸 English**. Hapic detecta inicialmente el idioma del navegador y conserva tu elección localmente. La interfaz, los mensajes del sistema, las cinco plantillas y sus instrucciones están disponibles en ambos idiomas. Las nuevas respuestas de los agentes siguen el idioma seleccionado, también en perfiles existentes; el historial y los archivos guardados se conservan en su idioma original.
-
-Use the flag selector in the top bar or **Settings → Language** to switch between Spanish and English. The selection is saved in your browser and applies to the interface, system messages, all five specialist templates, and new agent responses. Existing messages and files keep their original content.
-
-## Recorrido
-
-1. Crea una organización y un proyecto desde la plataforma. Se guardan registros, pertenencia del operador local y carpetas reales. El proyecto recibe un perfil Hapic nuevo.
-2. En Configuración, define o reemplaza la API key de OpenAI mediante el formulario dedicado. La clave guardada tiene prioridad sobre `OPENAI_API_KEY` del entorno del servidor o del archivo `.env` ignorado por Git, que se usa como respaldo. Inicia o reinicia los agentes para aplicar la clave nueva. Nunca la pegues en el chat.
-3. Inicia Docker Desktop. Abre Hapic y pulsa **Iniciar runtime**. Si ya hay key al crear un proyecto, se solicita su arranque automáticamente.
-4. Pide crear un especialista UX, diseñador gráfico, arquitecto/planner, coder o community manager; también puedes ir a **Plantillas → Usar plantilla**. Hapic pregunta el nombre si falta y usa las herramientas MCP de provisión.
-5. Abre el especialista, conversa y consulta archivos/actividad. **Archivos** muestra accesos directos a sus entregables guardados, con vista previa de documentos e imágenes, sin recorrer carpetas del sistema. Incluye el plan que publique un arquitecto; cada agente muestra únicamente sus propios resultados.
-
-The **Files** tab provides shortcuts to each agent's saved deliverables, with document and image previews. Architects also see their own published plan. System folders, profiles and memories stay out of this view.
-
-El chat aparece únicamente cuando el agente está listo y hay una credencial de OpenAI configurada. Sin Docker o sin key, la conversación permanece oculta. **Preparar** o **Usar plantilla** permite crear el perfil desde un formulario; no solicita inferencia ni simula mensajes de Hermes o contenedores activos.
-
-## Sigue la preparación de cada agente
-
-Mientras un agente se prepara, la pestaña **Conversación** muestra **«{nombre} se está preparando»** y su flujo de creación: **perfil y memoria → requisitos → configuración → red → imagen de Hermes → contenedor → API disponible**. Cada nodo muestra su estado y duración; haz clic para consultar sus registros. La lista **Para estar disponible** muestra las etapas pendientes o bloqueadas y el motivo del fallo cuando existe. El flujo y sus registros se guardan en SQLite y se actualizan cada tres segundos mientras la pestaña está visible. Al confirmar que el agente está listo, el flujo desaparece y aparece el chat. Durante un reinicio vuelve la preparación; un agente detenido o cuya disponibilidad no se pudo comprobar muestra su estado sin chat.
-
-El selector lateral y la tabla identifican los perfiles pendientes o en proceso como **En preparación**. La disponibilidad exige la respuesta autenticada de salud de Hermes; el acceso al modelo se comprueba en el primer turno. Los registros muestran hitos de Hapic sin credenciales, no la salida completa del contenedor ni un porcentaje de descarga. Reiniciar genera un nuevo intento y conserva los anteriores en almacenamiento. Los perfiles anteriores a esta función muestran una explicación hasta su siguiente arranque. Consulta la [guía del flujo](docs/dashboard.md#sigue-la-preparación-de-cada-agente).
-
-While an agent is preparing, **Conversation** shows **“{name} is getting ready”** and **profile and memory → requirements → configuration → network → Hermes image → container → API available**. Select a node to inspect its status, duration and saved logs; **Before becoming available** lists unfinished stages and any failure reason. The flow persists in SQLite and refreshes every three seconds while the tab is visible. Once readiness is confirmed and OpenAI is configured, the flow disappears and the chat appears. Restarting hides the chat and restores preparation; stopped agents or unconfirmed availability show status guidance without a chat. The sidebar selector and table label pending or starting agents **Preparing**. Availability requires the authenticated Hermes health response; model access is checked on the first turn. Logs contain Hapic milestones without credentials, not full container output or download percentages. Restarting records a new attempt and retains previous attempts in storage. Older profiles start tracking on their next startup.
-
-## Especialistas, planes e imágenes
-
-| Plantilla | Trabajo |
-| --- | --- |
-| UX | Brief, flujos, wireframes, accesibilidad e imágenes solicitadas |
-| Diseñador gráfico | Brief visual y generación real de PNG guardados y adjuntos al chat |
-| Arquitecto / Planner | Arquitectura y plan compartido con tareas, archivos, contratos y validación |
-| Coder | Implementación en archivos siguiendo el plan del arquitecto vinculado |
-| Community Manager | Estrategia, calendario, copys, guiones, propuestas de respuesta y análisis de métricas aportadas |
-
-El Community Manager prepara borradores para Instagram y YouTube con memoria y archivos propios. Incluye **YouTube de solo lectura**: conecta un canal desde **Herramientas**, consulta vídeos, comentarios y métricas y asigna el canal a los agentes que elijas. Cualquier tipo de agente puede integrarla. El administrador configura el JSON OAuth en el servidor, por ejemplo como secreto de Docker con `./scripts/start-docker.sh "/ruta/privada/google-oauth.json"`; cada cliente solo autoriza su canal desde Google. La [guía de YouTube](docs/youtube.md) detalla configuración, permisos y alcance. Instagram, publicación, programación y respuestas siguen pendientes.
-
-Crea primero el arquitecto y después el coder, seleccionando ese arquitecto del mismo proyecto. El arquitecto publica mediante `publish_architecture_plan`; el coder usa `get_architecture_plan` antes de escribir. Si el plan cambia, debe volver a leerlo. Para el planner se recomienda un modelo de capacidad media a superior (`gpt-6.1-sol`, esfuerzo `high` para trabajo complejo); las preferencias globales se conservan y pueden ajustarse en cada conversación. El coder puede escribir código y pruebas, pero no dispone de terminal para ejecutarlas.
-
-`generate_project_image` utiliza la key guardada y OpenAI Images. El modelo de imagen predeterminado es `gpt-image-2.5-flare`, configurable en el servidor con `HAPIC_IMAGE_MODEL`; es independiente del modelo conversacional. Cada llamada genera una imagen y puede tener coste. El PNG se guarda primero en `agents/<id>/workspace/images/`, luego se registra un adjunto del chat. Se conserva incluso si falla la respuesta final de Hermes. Las imágenes tienen vista previa y descarga en **Archivos**. No se descargan URLs arbitrarias ni se depende de enlaces temporales del proveedor.
-
-El modelo inicial es `gpt-6.1-sol` y el esfuerzo `xhigh`. Ambos se pueden elegir mediante selectores para agentes nuevos en Configuración y para un agente existente desde el compositor. El selector de modelos ofrece nombres legibles y conserva los identificadores personalizados ya guardados. Los cambios por agente se envían en el siguiente turno mediante `provider: openai-api` y `model_options.reasoning_effort`. No se usa la suscripción ni se importan credenciales de Codex.
-
-## Delegaciones entre agentes
-
-Los especialistas pueden encargar trabajo directamente a un colega del mismo proyecto. Cada perfil define sus responsabilidades, el contexto que necesita y los entregables que devuelve; las memorias y los workspaces siguen siendo privados.
-
-Abre **Delegaciones** y elige un proyecto para consultar quién envía y recibe cada tarea, filtrar por agente o estado y revisar contexto, resultados y errores. Puedes copiar la respuesta y abrir la conversación de los participantes. La vista se actualiza cada seis segundos mientras está visible y conserva el historial entre sesiones.
-
-La ejecución requiere una API key de OpenAI y el runtime Docker del destinatario iniciado; puede generar consumo de API. Consultar el historial no ejecuta agentes. No hay reintentos ni continuación automática del remitente: este recupera el resultado con `get_task_status`. Una tarea finalizada confirma que terminó el turno; la respuesta puede indicar trabajo parcial o bloqueado. Se rechazan duplicados con contenido distinto, autodelegaciones, otros proyectos, ciclos y más de cuatro niveles. Tras un reinicio, las tareas interrumpidas quedan fallidas para su revisión.
-
-Specialists can delegate work directly to a colleague in the same project, using role contracts that define responsibilities, required context and expected deliverables. Memories and workspaces remain private. Open **Delegaciones** to filter by project, participant or status, inspect context, results and errors, copy responses and open participant conversations. The visible panel refreshes every six seconds and keeps its history across sessions.
-
-Execution requires an OpenAI API key and the recipient's running Docker runtime, and may incur API usage. Reading history does not run agents. There are no automatic retries or sender continuation; the sender retrieves results with `get_task_status`. A completed turn may report partial or blocked work. The server rejects conflicting duplicate requests, self-delegation, cross-project requests, cycles and chains beyond four levels. Interrupted tasks are marked failed after a restart for review.
-
-Consulta el [panel de delegaciones](docs/dashboard.md#sigue-las-delegaciones-de-tu-equipo), la [API de colaboración](docs/api.md#delegación-directa) y la [arquitectura](docs/architecture.md#colaboración-directa-entre-agentes).
-
-## Ejecutar con Docker Compose
-
-Con Docker Desktop activo:
+En Windows, desde el repositorio:
 
 ```powershell
 .\scripts\start-docker.ps1
 ```
 
-El script fija `HAPIC_HOST_DATA_DIR` a la ruta absoluta de `.hapic` y ejecuta `docker compose up --build -d`. En Linux, exporta esa variable con una ruta absoluta y usa `docker compose up --build -d`. Solo se publica `127.0.0.1:8000`.
+Abre [Hapic en tu equipo](http://127.0.0.1:8000). El primer inicio descarga y construye las imágenes necesarias. También puedes [instalarlo con Python, Node y pnpm](docs/guide.md).
 
-Compose ejecuta el control de gestión. Los contenedores de agentes se crean dinámicamente a partir de `nousresearch/hermes-agent:stable`, en la red `hapic-net`; cada uno recibe exclusivamente sus dos volúmenes persistentes y tokens propios. `HERMES_IMAGE` permite fijar una versión o digest tras validar esa imagen. El primer arranque puede tardar por la descarga de la imagen oficial.
+### Recorrido
 
-El control de gestión tiene acceso al socket Docker para provisionar contenedores: es un componente de confianza con privilegios sobre el motor. Los agentes nunca reciben ese socket. No expongas este MVP local como SaaS público; requiere autenticación multiusuario y endurecimiento adicional antes de ese paso.
+1. **Dale contexto.** Crea una organización y un proyecto.
+2. **Prepara la conexión.** Guarda tu API key de OpenAI en **Configuración** e inicia Docker.
+3. **Reúne tu equipo.** Crea los especialistas desde Hapic o desde **Plantillas**. Para un coder, selecciona primero un arquitecto del mismo proyecto.
+4. **Inicia y encarga.** Sigue la preparación del runtime y conversa cuando esté disponible. Define objetivo, contexto y resultado esperado.
+5. **Sigue y revisa.** Consulta **Delegaciones**, abre **Archivos** y decide el siguiente paso.
 
-## Persistencia y límites de acceso
+La plataforma permite organizar proyectos y preparar perfiles sin OpenAI ni Docker. Conversar y ejecutar delegaciones requieren una API key y el runtime del destinatario; pueden generar consumo de API. Las imágenes también pueden tener coste.
 
-```text
-.hapic/
-  platform.db                          # organizaciones, pertenencia, proyectos, agentes, mensajes, actividad
-  secrets/                             # clave de cifrado y credenciales/tokens cifrados; fuera del explorador
-  organizations/<org-id>/
-    organization.json
-    projects/<project-id>/
-      project.json
-      workspace/plans/<planner-id>/plan.md  # plan compartido por cada arquitecto
-      agents/<agent-id>/
-        hermes/                        # HERMES_HOME → /opt/data
-          SOUL.md
-          config.yaml
-          memories/MEMORY.md
-          memories/USER.md
-          skills/
-          state.db                     # aparece cuando lo crea el runtime Hermes
-        workspace/                     # → /workspace; código y documentos del agente
-          images/                      # PNG persistentes generados por la herramienta
+## Lo disponible y lo que viene
+
+| Disponible en este MVP local | Previsto |
+| --- | --- |
+| Proyectos, agentes persistentes y cinco plantillas | Agentes creados desde cero con rol e instrucciones propios |
+| Delegación directa y panel de seguimiento | Composición más flexible de flujos personalizados |
+| Plan compartido de arquitecto a coder | Nuevas conexiones como HeyGen y ElevenLabs |
+| Archivos con vista previa e imágenes persistentes | Publicación y programación social |
+| YouTube de solo lectura | Acceso remoto multiusuario y roles empresariales |
+| Interfaz y nuevas respuestas en español e inglés | |
+
+El coder escribe código y pruebas; no tiene terminal para ejecutarlas. YouTube requiere configuración OAuth del servidor y autorización del canal; no publica ni responde comentarios. [Consulta el alcance completo](docs/guide.md#pruebas-y-alcance-verificado).
+
+<details>
+<summary><strong>¿Dónde quedan mis datos y qué se envía al modelo?</strong></summary>
+
+El estado de Hapic, los perfiles, memorias y workspaces se guardan localmente. Los mensajes y el contexto necesario para cada turno se envían a OpenAI. Cada agente tiene su propio perfil y workspace; los planes compartidos se leen mediante herramientas autorizadas. [Persistencia y límites de acceso](docs/guide.md#persistencia-y-límites-de-acceso).
+
+</details>
+
+<details>
+<summary><strong>¿Puedo usarlo como un servicio público?</strong></summary>
+
+Esta versión está pensada para un operador local. El control de gestión administra Docker; un servicio público requiere autenticación multiusuario y endurecimiento adicional. [Confianza y alcance](docs/architecture.md#confianza-y-alcance).
+
+</details>
+
+## Documentación técnica
+
+Hapic utiliza **React/Vite + FastAPI + SQLite + un contenedor Hermes por agente**. La plataforma gestiona el trabajo y el acceso a herramientas; cada Hermes ejecuta los turnos de su agente.
+
+```mermaid
+flowchart LR
+    UI["Interfaz React"] -->|HTTP| API["FastAPI y Service"]
+    API --> Data["SQLite y archivos locales"]
+    API -->|Responses| Agent["Hermes por agente"]
+    Agent -->|MCP| API
+    API -.->|Docker SDK| Docker["Motor Docker"]
+    Agent --> AI["OpenAI API"]
 ```
 
-La memoria resumida de Hermes y su historial completo no son lo mismo: `memories/` contiene contexto persistente y `state.db` conserva sesiones/historial de Hermes. La plataforma conserva además los mensajes visibles en su SQLite. No copia memorias, sesiones ni credenciales de agentes anteriores al aplicar una plantilla.
+| Quiero… | Guía |
+| --- | --- |
+| Entender cómo se comunican los componentes y contenedores | [Mapas de la arquitectura actual](docs/architecture.md#mapas-de-la-arquitectura-actual) |
+| Instalar, elegir modelos y conocer el recorrido completo | [Guía de uso y referencia](docs/guide.md) |
+| Arrancar, actualizar, respaldar o diagnosticar | [Operación local](docs/operations.md) |
+| Integrar rutas, sesión y herramientas | [API y MCP](docs/api.md) |
+| Autorizar un canal y asignarlo a los agentes | [YouTube](docs/youtube.md) |
+| Consultar el alcance del perfil social | [Community Manager](docs/community-manager.md) |
+| Ver cambios entre versiones | [Changelog](CHANGELOG.md) |
 
-La pertenencia de organización se valida en servidor. Cada token MCP identifica un agente y su proyecto, sin aceptar un proyecto arbitrario del modelo. Las herramientas de archivos operan en el workspace propio; el plan se comparte mediante una herramienta dedicada con los coders vinculados. Se rechazan rutas absolutas, traversal, enlaces, secretos y configuración sensible. Las imágenes se sirven por una ruta autenticada que comprueba formato, tamaño y pertenencia al workspace.
-
-La key se cifra con Fernet y una clave maestra local. Nunca se devuelve por API, ni se guarda en localStorage, ni se incluye en errores de validación. El maestro y los datos están ignorados por Git. Un administrador del equipo o del motor Docker puede acceder a secretos del proceso/contenedor; el cifrado local no sustituye un gestor de secretos multiusuario. Al rotar la key, reinicia los agentes; eliminarla del servidor no borra el entorno de contenedores ya creados.
-
-Los datos y el estado se guardan localmente. Las consultas, memoria/contexto necesario y resultados de herramientas usados en cada turno se envían a OpenAI para inferencia. No se promete que todos los datos permanezcan en el equipo.
-
-## Integración oficial
-
-- [Hermes: integración programática](https://hermes-agent.nousresearch.com/docs/developer-guide/programmatic-integration): API HTTP, SSE y núcleo `AIAgent` real.
-- [Hermes: API Server](https://hermes-agent.nousresearch.com/docs/user-guide/features/api-server): `/v1/responses`, conversaciones persistentes, idempotencia y selección de modelo por petición.
-- [Hermes: proveedores](https://hermes-agent.nousresearch.com/docs/integrations/providers): `openai-api` con API key, separado de `openai-codex` OAuth.
-- [Hermes: perfiles](https://hermes-agent.nousresearch.com/docs/user-guide/profiles): un `HERMES_HOME` por agente, independiente del directorio de trabajo.
-- [Hermes: Docker](https://hermes-agent.nousresearch.com/docs/user-guide/docker): imagen oficial, `/opt/data` y supervisión del gateway.
-- [OpenAI: GPT-6.1 Sol](https://developers.openai.com/api/docs/models/gpt-6.1-sol): `xhigh` admitido; function calling exige Responses API.
-- [OpenAI: generación de imágenes](https://developers.openai.com/api/docs/guides/image-generation): Images API y resultados base64 guardados como PNG.
-
-La configuración fija explícitamente `model.api_mode: codex_responses`, el nombre del transporte Responses de Hermes, hacia `https://api.openai.com/v1`. La UI no infiere compatibilidad por el nombre del endpoint público de Hermes. El cliente verifica `/health/detailed` autenticado y `status: ok` antes de marcar el runtime disponible. El acceso real al modelo se verifica en el primer turno, no mediante una simple comprobación de Docker.
-
-## Pruebas y alcance verificado
-
-```powershell
-$env:HAPIC_DATA_DIR = Join-Path (Get-Location) ('.hapic/test-local-' + [guid]::NewGuid().ToString('N'))
-.\.venv\Scripts\python.exe -m pytest -q --basetemp .hapic/test-local
-Set-Location frontend
-pnpm test
-pnpm build
-```
-
-En un sandbox Windows que bloquee sockets, las pruebas ASGI/TestClient y el servidor pueden requerir ejecución autorizada fuera de ese aislamiento. No se cambia el firewall ni las protecciones globales.
-
-Las pruebas cubren persistencia, valores por defecto, CSRF/origen, pertenencia, secretos cifrados, errores redactados, rutas, permisos y protocolo MCP, plantillas, modelos, idempotencia y contrato `/v1/responses`; también planes de arquitecto/coder e imágenes persistentes. La suite de YouTube verifica OAuth con PKCE y estado ligado a sesión, asignaciones por agente y proyecto, renovación, consultas y desconexión. Los dobles de Docker/Hermes, Images y Google se utilizan solo en pruebas; no son un modo de ejecución de producción. No se realizan llamadas facturables. La prueba de enlace simbólico puede omitirse cuando Windows no concede permiso.
-
-**Verificación local de despliegue:** después de instalar Docker Desktop y WSL2 y reiniciar Windows, el motor Linux ejecutó un contenedor `hello-world` real. La imagen de Hapic se construyó y Compose la inició con estado `healthy` en `127.0.0.1:8000`, conservando el almacenamiento existente. Se comprobó un montaje real de Windows desde el provisionador y las APIs autenticadas de dos contenedores oficiales Hermes (Hapic y UX). Sus perfiles tienen `state.db` y directorios de memoria persistentes. La plataforma ya registra respuestas reales de Hermes usando la credencial configurada por el usuario, con `gpt-6.1-sol` y `xhigh`.
-
-La creación conversacional se comprueba con dobles en los tests. No se ejecutó una prueba adicional de QA con dos llamadas facturables a OpenAI. Los diagnósticos locales se guardan en `artifacts/`, que está excluido de Git.
-
-Fuera de este MVP: login remoto multiusuario, roles empresariales completos, comunicación entre proyectos, WhatsApp, llamadas, Kubernetes y hosting externo.
-
-## Documentar nuevas características
-
-El skill del repositorio [hapic-feature-docs](.agents/skills/hapic-feature-docs/SKILL.md) guía la actualización conjunta de este README y GitHub Pages al incorporar capacidades nuevas. No se aplica a refactors o parches sin nuevas funcionalidades.
+Para contribuir: [pruebas y validación](docs/guide.md#pruebas-y-alcance-verificado), [skill de ejecución](.agents/skills/hapic-execution/SKILL.md) y [skill de documentación](.agents/skills/hapic-feature-docs/SKILL.md). Los [bocetos iniciales](docs/mockups) conservan la evolución visual del proyecto.
