@@ -12,17 +12,22 @@ from contextlib import nullcontext
 from pathlib import Path
 from urllib.parse import urlencode
 
+import httpx
+
+from . import litellm
 from .images import IMAGE_TYPES, MAX_IMAGE_BYTES, ImageGenerator, atomic_write, image_type
 from .i18n import get_language, language_context, localize_fields, tr
+from .model_routing import AUTOMATIC_MODEL, model_settings, resolve_turn_model
 from .runtime import DockerRuntime, RuntimeUnavailable
 from .preparation import Preparation, FAILED
-from .storage import ROOT, DEFAULT_MODEL, Store, now, uid
+from .storage import ROOT, Store, now, uid
 from .templates import agent_instructions, project_roster, SPECIALISTS, template as load_template, template_root
 from .tool_catalog import CATALOG, defaults, effective_tools
 from .youtube import YouTube
 
 SAFE_EXTENSIONS = {".md", ".txt", ".json", ".yaml", ".yml", ".csv", ".html", ".css", ".svg", ".py", ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".sql", ".toml", ".xml", ".scss", ".vue", ".svelte", ".go", ".rs", ".java", ".kt", ".c", ".h", ".cpp", ".cs", ".sh", ".ps1"}
 HIDDEN_NAMES = {"secrets", ".env", "auth.json", "logs", "cache", "installs", ".git", "node_modules", "mcp-tokens"}
+RECIPIENT_BUSY = "El destinatario está ocupado. Reintenta con una nueva delegación cuando esté disponible."
 
 
 def valid_name(value):
@@ -76,6 +81,43 @@ class Service:
         with self.locks_guard:
             return self.locks.setdefault(agent_id, threading.Lock())
 
+    def runtime_status(self, agent):
+        if agent["status"] == "provisioning":
+            return {"status": "provisioning", "ready": False}
+        return self.runtime.inspect(agent, self.store)
+
+    def active_delegation(self, agent_id):
+        return self.store.one(
+            "SELECT id,status FROM delegated_tasks WHERE recipient_id=? AND status IN ('queued','running') "
+            "ORDER BY status='running' DESC,created_at,id LIMIT 1", (agent_id,),
+        )
+
+    async def run_agent_turn(self, agent, content, request_id, *, task=None):
+        gateway = litellm.base_url()
+        if gateway:
+            best = litellm.best_model()
+            model = best if agent["model"] == AUTOMATIC_MODEL else agent["model"]
+            try:
+                models = await asyncio.to_thread(litellm.authorized_models, self.store)
+            except (httpx.HTTPError, ValueError, TypeError, KeyError):
+                raise RuntimeUnavailable(litellm.CATALOG_ERROR) from None
+            if model not in models:
+                if best not in models:
+                    raise RuntimeUnavailable("El modelo del agente ya no está autorizado en LiteLLM. Elige un modelo disponible o habilita Best model.")
+                model = best
+            selected = {**agent, "model": model}
+        else:
+            selected = resolve_turn_model(agent, content if task is None else task)
+        answer, status = await self.runtime.chat(selected, self.store, content, request_id)
+        if gateway:
+            self.store.event(agent["id"], tr("Solicitud procesada por LiteLLM con el modelo o alias {model}.", model=selected["model"]))
+        elif agent["model"] == AUTOMATIC_MODEL:
+            self.store.event(agent["id"], tr(
+                "Modelo automático usado: {model} ({effort}).",
+                model=selected["model"], effort=selected["effort"],
+            ))
+        return answer, status
+
     def project(self, project_id, user="local-owner"):
         result = self.store.one("SELECT p.* FROM projects p JOIN memberships m ON m.organization_id=p.organization_id WHERE p.id=? AND m.user_id=?", (project_id, user))
         if not result:
@@ -123,7 +165,7 @@ class Service:
                 raise ValueError("Selecciona un arquitecto/planner del mismo proyecto.")
         elif planner_id:
             raise ValueError("Solo un coder puede vincularse a un arquitecto.")
-        settings = self.store.setting("model", {"model": DEFAULT_MODEL, "effort": "xhigh"})
+        settings = model_settings(self.store)
         agent = {"id": uid("agt"), "organization_id": project["organization_id"], "project_id": project_id, "name": name, "kind": kind, "template": load_template(kind)["id"] if kind != "hapic" else "hapic-v1", **settings, "status": "pending", "container_id": None, "error": None, "created_at": now(), "planner_id": planner_id}
         try:
             self.store.execute("INSERT INTO agents(id,organization_id,project_id,name,kind,template,model,effort,status,container_id,error,created_at,planner_id) VALUES (:id,:organization_id,:project_id,:name,:kind,:template,:model,:effort,:status,:container_id,:error,:created_at,:planner_id)", agent)
@@ -263,7 +305,7 @@ class Service:
             task = self.store.one("SELECT * FROM delegated_tasks WHERE id=? AND project_id=? AND (sender_id=? OR recipient_id=?)", (args["task_id"], project["id"], agent["id"], agent["id"]))
             if not task:
                 raise LookupError("Tarea no encontrada o sin permiso.")
-            return task
+            return localize_fields(task, "error")
         if name in {"create_ux_agent", "create_specialist_agent"} and agent["kind"] == "hapic":
             kind = "ux" if name == "create_ux_agent" else args["template"]
             if kind not in SPECIALISTS:
@@ -280,7 +322,8 @@ class Service:
         if name == "generate_project_image":
             prompt = args["prompt"]
             valid_content(prompt)
-            data = self.images.generate(self.store.api_key(), prompt, args.get("size", "1024x1024"))
+            key = litellm.gateway_key(self.store) if litellm.image_model() else self.store.api_key()
+            data = self.images.generate(key, prompt, args.get("size", "1024x1024"))
             image_id = uid("img")
             relative = f"images/{image_id}.png"
             path = safe_path(self.store.agent_path(agent) / "workspace", relative, writing=True, image=True)
@@ -342,7 +385,7 @@ class Service:
             if previous:
                 if any(previous[key] != value for key, value in {"recipient_id": agent_id, "task": task, "context": context, "expected_result": expected_result}.items()):
                     raise ValueError("request_id ya pertenece a otra delegación.")
-                return dict(previous)
+                return localize_fields(dict(previous), "error")
             # Graph changes are serialized so concurrent delegations cannot introduce cycles.
             active = [dict(row) for row in db.execute("SELECT * FROM delegated_tasks WHERE project_id=? AND status IN ('queued','running')", (agent["project_id"],))]
             reachable = {agent_id}
@@ -404,7 +447,7 @@ class Service:
             "WHERE t.project_id=? AND t.id=?", (project_id, task_id))
         if not task:
             raise LookupError("Delegación no encontrada en el proyecto.")
-        return task
+        return localize_fields(task, "error")
 
     def run_delegated_task(self, task_id, language="es"):
         with self.store.db() as db:
@@ -415,12 +458,22 @@ class Service:
         lock = self.lock(record["recipient_id"])
         try:
             if not lock.acquire(blocking=False):
-                raise RuntimeUnavailable("El destinatario está ocupado. Reintenta con una nueva delegación cuando esté disponible.")
+                raise RuntimeUnavailable(RECIPIENT_BUSY)
             try:
                 recipient = self.agent(record["recipient_id"])
-                if not self.store.api_key() or not recipient.get("container_id"):
-                    raise RuntimeUnavailable("El destinatario necesita credencial y runtime iniciado.")
-                self.store.execute("UPDATE delegated_tasks SET status='running',updated_at=? WHERE id=?", (now(), task_id))
+                readiness = self.runtime_status(recipient)
+                if not readiness["ready"]:
+                    if readiness.get("message"):
+                        raise RuntimeUnavailable(readiness["message"])
+                    if readiness["status"] in {"starting", "provisioning"}:
+                        raise RuntimeUnavailable("El runtime del destinatario todavía se está preparando. Espera a que su API esté disponible.")
+                    if readiness["status"] in {"stopped", "pending"}:
+                        raise RuntimeUnavailable("El runtime del destinatario está apagado. Inícialo antes de volver a delegar.")
+                    raise RuntimeUnavailable("No se pudo verificar la disponibilidad del runtime del destinatario.")
+                if readiness.get("busy"):
+                    raise RuntimeUnavailable(RECIPIENT_BUSY)
+                if not litellm.inference_key(self.store):
+                    raise RuntimeUnavailable("El destinatario necesita una credencial de modelo configurada para ejecutar la delegación.")
                 with language_context(language):
                     self.store.set_setting("agent-language-" + recipient["id"], get_language())
                     content = tr(
@@ -430,7 +483,8 @@ class Service:
                         "incluye contenido utilizable, artefactos reales, validación y bloqueos.\n"
                     ) + json.dumps({key: record[key] for key in ("id", "sender_id", "task", "context", "expected_result")}, ensure_ascii=False)
                     self.store.message(recipient["id"], "user", content, "delegation")
-                    answer, status = asyncio.run(self.runtime.chat(recipient, self.store, content, task_id))
+                    task = "\n".join(record[key] for key in ("task", "context", "expected_result") if record[key])
+                    answer, status = asyncio.run(self.run_agent_turn(recipient, content, task_id, task=task))
                 if status != "completed":
                     raise RuntimeUnavailable("El runtime no completó la tarea delegada.")
                 self.store.message(recipient["id"], "assistant", answer, "delegation")
@@ -438,8 +492,9 @@ class Service:
                 self.store.event(record["sender_id"], f"Delegación {task_id} completada. Resultado disponible con get_task_status.")
             finally:
                 lock.release()
-        except Exception:
-            self.store.execute("UPDATE delegated_tasks SET status='failed',error=?,updated_at=? WHERE id=?", ("No se completó la delegación. Comprueba disponibilidad y actividad del destinatario antes de reintentar.", now(), task_id))
+        except Exception as exc:
+            error = str(exc) if isinstance(exc, RuntimeUnavailable) else "No se completó la delegación. Comprueba disponibilidad y actividad del destinatario antes de reintentar."
+            self.store.execute("UPDATE delegated_tasks SET status='failed',error=?,updated_at=? WHERE id=?", (error, now(), task_id))
             self.store.event(record["sender_id"], f"Delegación {task_id} fallida.")
 
     def architecture_plan(self, agent):

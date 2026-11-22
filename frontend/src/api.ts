@@ -71,7 +71,15 @@ export type Agent = {
   error: string | null;
   created_at: string;
 };
-export type AgentRuntime = { status: string; ready: boolean; container?: string; message?: string };
+export type AgentRuntime = {
+  status: string;
+  ready: boolean;
+  busy?: boolean;
+  container?: string;
+  message?: string;
+  active_delegation?: { id: string; status: "queued" | "running" } | null;
+  last_message_id?: number | null;
+};
 export type PreparationStatus = "pending" | "running" | "completed" | "blocked" | "failed";
 export type PreparationStep = {
   id: string;
@@ -115,6 +123,14 @@ export type State = {
 export type Capabilities = {
   docker: { available: boolean; message: string; image: string };
   openai: { configured: boolean; source: string };
+  litellm: LiteLLMConnection | null;
+};
+export type LiteLLMConnection = {
+  configured: boolean;
+  dashboard_url: string | null;
+  best_model: string;
+  models: string[];
+  error: string | null;
 };
 export type Template = {
   kind: Exclude<Agent["kind"], "hapic">;

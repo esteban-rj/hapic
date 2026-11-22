@@ -85,6 +85,7 @@ def test_direct_execution_and_persistent_result(team, monkeypatch, language, rep
         service.tool(agent, 'project_write_file', {'path': 'entrega-visual.md', 'content': deliverable})
         return answer, 'completed'
     service.runtime.chat = chat
+    service.runtime.inspect = lambda *_: {'status': 'running', 'ready': True}
     service.store.set_setting('agent-language-' + a['id'], language)
     with patch('backend.service.threading.Thread') as thread:
         task = service.tool(a, 'delegate_task', dict(
@@ -102,6 +103,25 @@ def test_direct_execution_and_persistent_result(team, monkeypatch, language, rep
     assert calls == [b['id']]
     restarted = Service(Store(service.store.root), TestRuntime())
     assert restarted.tool(a, 'get_task_status', {'task_id': task['id']})['result'] == answer
+
+
+def test_automatic_model_uses_delegated_context(team, monkeypatch):
+    service, sender, recipient = team
+    monkeypatch.setenv('OPENAI_API_KEY', 'test-only')
+    service.store.execute("UPDATE agents SET model='auto',container_id='test' WHERE id=?", (recipient['id'],))
+
+    async def chat(agent, store, text, request_id):
+        assert agent['model'] == 'gpt-6-astra' and agent['effort'] == 'xhigh'
+        return 'Review completed', 'completed'
+
+    service.runtime.chat = chat
+    service.runtime.inspect = lambda *_: {'status': 'running', 'ready': True}
+    with patch('backend.service.threading.Thread'):
+        task = service.tool(sender, 'delegate_task', dict(agent_id=recipient['id'], task='Review',
+                            request_id='automatic', context='Find the root cause of a regression.'))
+    service.run_delegated_task(task['id'], 'en')
+    assert service.tool(sender, 'get_task_status', {'task_id': task['id']})['status'] == 'completed'
+    assert service.agent(recipient['id'])['model'] == 'auto'
 
 
 def test_all_profiles_expose_contracts_and_instructions_in_roster_and_catalog(team):
@@ -166,7 +186,27 @@ def test_busy_recipient_fails_without_calling_runtime(team, monkeypatch):
         task = service.tool(a, 'delegate_task', dict(agent_id=b['id'], task='Review', request_id='busy'))
     with service.lock(b['id']):
         service.run_delegated_task(task['id'])
-    assert service.tool(a, 'get_task_status', {'task_id': task['id']})['status'] == 'failed'
+    status = service.tool(a, 'get_task_status', {'task_id': task['id']})
+    assert status['status'] == 'failed' and 'ocupado' in status['error']
+
+
+@pytest.mark.parametrize(('readiness', 'diagnostic'), [
+    ({'status': 'stopped', 'ready': False}, 'runtime del destinatario está apagado'),
+    ({'status': 'starting', 'ready': False}, 'se está preparando'),
+    ({'status': 'running', 'ready': True, 'busy': True}, 'destinatario está ocupado'),
+])
+def test_delegation_checks_live_readiness_and_reports_the_cause(team, monkeypatch, readiness, diagnostic):
+    service, sender, recipient = team
+    monkeypatch.setenv('OPENAI_API_KEY', 'test-only')
+    service.store.execute("UPDATE agents SET status='running',container_id='stale' WHERE id=?", (recipient['id'],))
+    service.runtime.inspect = lambda *_: readiness
+    with patch('backend.service.threading.Thread'), patch.object(service.runtime, 'chat') as chat:
+        task = service.delegate_task(sender, recipient['id'], 'Review', 'offline')
+        service.run_delegated_task(task['id'])
+        chat.assert_not_called()
+    status = service.tool(sender, 'get_task_status', {'task_id': task['id']})
+    assert status['status'] == 'failed' and diagnostic in status['error']
+    assert service.messages(recipient['id']) == []
 
 
 def test_mcp_direct_delegation_transport(tmp_path):

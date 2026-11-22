@@ -399,6 +399,46 @@ def test_model_changes_apply_and_clean_template(client, app):
     assert client.put("/api/settings/model", json={"model": "gpt-6.1-sol", "effort": "none"}).status_code == 400
 
 
+def test_automatic_model_resolves_each_turn_and_keeps_the_agent_setting(client, app):
+    assert client.put("/api/settings/model", json={"model": "auto", "effort": "max"}).status_code == 200
+    project(client)
+    agent = client.get("/api/state").json()["agents"][0]
+    assert agent["model"] == "auto" and agent["effort"] == "max"
+    store = app.state.store
+    config = yaml.safe_load((store.agent_path(agent) / "hermes/config.yaml").read_text())
+    assert config["model"]["default"] == "gpt-6.1-sol"
+    assert config["agent"]["reasoning_effort"] == "high"
+    store.secret("openai", "test-key-never-sent-to-openai")
+    store.execute("UPDATE agents SET container_id='docker-double' WHERE id=?", (agent["id"],))
+    calls = []
+
+    async def reply(current, store, text, request_id):
+        calls.append((current["id"], current["model"], current["effort"], request_id))
+        return "Listo", "completed"
+
+    app.state.service.runtime.chat = reply
+    endpoint = f"/api/agents/{agent['id']}"
+    messages = [
+        ("Traduce: hello!", "gpt-6-luna", "low"),
+        ("Implementa el formulario.", "gpt-6.1-sol", "high"),
+        ("Diagnostica la causa raíz de la regresión.", "gpt-6-astra", "xhigh"),
+    ]
+    for index, (content, _, _) in enumerate(messages):
+        request = {"content": content, "request_id": f"auto-{index}"}
+        assert client.post(endpoint + "/chat", json=request).status_code == 200
+    assert client.post(endpoint + "/chat", json=request).status_code == 200
+    assert calls == [(agent["id"], model, effort, f"auto-{i}") for i, (_, model, effort) in enumerate(messages)]
+    assert app.state.service.agent(agent["id"])["model"] == "auto"
+    events = client.get(endpoint + "/events", headers={"Accept-Language": "en"}).json()
+    assert [event["message"] for event in events if event["message"].startswith("Automatic model used")] == [
+        f"Automatic model used: {model} ({effort})." for _, model, effort in reversed(messages)
+    ]
+
+    assert client.put(endpoint + "/model", json={"model": "gpt-6.1-sol", "effort": "max"}).status_code == 200
+    assert client.post(endpoint + "/chat", json={"content": "Hola", "request_id": "fixed"}).status_code == 200
+    assert calls[-1] == (agent["id"], "gpt-6.1-sol", "max", "fixed")
+
+
 def test_chat_contract_with_hermes_double(client, app):
     p = project(client)
     agent = client.get("/api/state").json()["agents"][0]

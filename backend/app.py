@@ -4,6 +4,7 @@ import os
 import logging
 import re
 import secrets
+import httpx
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlparse, urlencode
@@ -17,11 +18,13 @@ from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from . import litellm
 from .i18n import get_language, language_context, localize_fields, tr
 from .runtime import RuntimeUnavailable
 from .preparation import Preparation, interrupt_preparations
 from .service import Service
-from .storage import DEFAULT_MODEL, EFFORTS, ROOT, Store, now, uid
+from .model_routing import model_settings as stored_model_settings
+from .storage import EFFORTS, ROOT, Store, now, uid
 from .templates import SPECIALISTS, template as load_template
 from .tool_catalog import CATALOG
 from .youtube import CALLBACK_PATH, OAuthAccessLogFilter
@@ -37,7 +40,7 @@ class AgentInput(NameInput):
 
 
 class ModelInput(BaseModel):
-    model: str = Field(min_length=1, max_length=100, pattern=r"^[a-zA-Z0-9._-]+$")
+    model: str = Field(min_length=1, max_length=200, pattern=litellm.MODEL_ID_PATTERN)
     effort: str
 
 
@@ -89,7 +92,7 @@ def create_app(data_dir: Path | None = None, runtime=None):
 
     @mcp.tool()
     def list_project_agents(ctx: Context) -> dict:
-        """Lista agentes del proyecto con rol y delegation_contract: owns, delegate_when, required_inputs, returns y limitations. Elige destinatario por su contrato; planner_id identifica al arquitecto vinculado de un coder."""
+        """Lista agentes del proyecto con rol, delegation_contract y planner_id del arquitecto vinculado. Elige por su contrato. status es el estado registrado del perfil. La delegación comprueba el runtime y get_task_status devuelve la causa si falla."""
         return service.tool(scope(ctx), "list_project_agents", {})
 
     @mcp.tool()
@@ -252,12 +255,13 @@ def create_app(data_dir: Path | None = None, runtime=None):
 
     @app.get("/api/state")
     def state():
-        return {"organizations": store.all("SELECT o.* FROM organizations o JOIN memberships m ON o.id=m.organization_id WHERE m.user_id='local-owner'"), "projects": store.all("SELECT p.* FROM projects p JOIN memberships m ON p.organization_id=m.organization_id WHERE m.user_id='local-owner'"), "agents": [localize_fields(agent, "error") for agent in store.all("SELECT a.* FROM agents a JOIN memberships m ON a.organization_id=m.organization_id WHERE m.user_id='local-owner'")], "settings": store.setting("model", {"model": DEFAULT_MODEL, "effort": "xhigh"})}
+        return {"organizations": store.all("SELECT o.* FROM organizations o JOIN memberships m ON o.id=m.organization_id WHERE m.user_id='local-owner'"), "projects": store.all("SELECT p.* FROM projects p JOIN memberships m ON p.organization_id=m.organization_id WHERE m.user_id='local-owner'"), "agents": [localize_fields(agent, "error") for agent in store.all("SELECT a.* FROM agents a JOIN memberships m ON a.organization_id=m.organization_id WHERE m.user_id='local-owner'")], "settings": stored_model_settings(store)}
 
     @app.get("/api/capabilities")
     def capabilities():
         source = "environment" if os.getenv("OPENAI_API_KEY") and not store.secret("openai") else "server"
-        return {"docker": localize_fields(service.runtime.health(), "message"), "openai": {"configured": bool(store.api_key()), "source": source}, "local_only": True}
+        gateway = litellm.capabilities(store)
+        return {"docker": localize_fields(service.runtime.health(), "message"), "openai": {"configured": bool(store.api_key()), "source": source}, "litellm": localize_fields(gateway, "error") if gateway else None, "local_only": True}
 
     @app.get("/api/tools")
     def tool_catalog():
@@ -311,7 +315,7 @@ def create_app(data_dir: Path | None = None, runtime=None):
     @app.post("/api/organizations/{org_id}/projects", status_code=201)
     def create_project(org_id: str, body: NameInput, tasks: BackgroundTasks):
         project = service.create_project(org_id, body.name)
-        if store.api_key():
+        if litellm.inference_key(store):
             hapic = store.one("SELECT id FROM agents WHERE project_id=? AND kind='hapic'", (project["id"],))
             tasks.add_task(service.provision, hapic["id"])
         return project
@@ -341,9 +345,14 @@ def create_app(data_dir: Path | None = None, runtime=None):
     @app.get("/api/agents/{agent_id}/runtime")
     def agent_runtime(agent_id: str):
         agent = service.agent(agent_id)
-        if agent["status"] == "provisioning":
-            return {"status": "provisioning", "ready": False}
-        return localize_fields(service.runtime.inspect(agent, store), "message")
+        runtime = service.runtime_status(agent)
+        if runtime["status"] == "provisioning":
+            return runtime
+        return {
+            **localize_fields(runtime, "message"),
+            "active_delegation": service.active_delegation(agent_id),
+            "last_message_id": store.one("SELECT MAX(id) AS id FROM messages WHERE agent_id=?", (agent_id,))["id"],
+        }
 
     @app.get("/api/agents/{agent_id}/preparation")
     def agent_preparation(agent_id: str):
@@ -375,17 +384,20 @@ def create_app(data_dir: Path | None = None, runtime=None):
 
     @app.post("/api/agents/{agent_id}/chat")
     async def chat(agent_id: str, body: ChatInput):
-        agent = service.agent(agent_id)
+        service.agent(agent_id)
         if re.search(r"\bsk-(?:proj-)?[A-Za-z0-9_-]{16,}", body.content):
             raise ValueError("No pegues API keys en el chat. Usa el formulario seguro de Configuración.")
-        if not store.api_key():
-            raise RuntimeUnavailable("Configura la API key en Configuración para conversar con Hermes.")
-        if not agent.get("container_id"):
-            raise RuntimeUnavailable("Inicia el contenedor del agente antes de conversar.")
         lock = service.lock(agent_id)
         if not lock.acquire(blocking=False):
+            if service.active_delegation(agent_id):
+                raise HTTPException(409, "El agente está atendiendo una delegación. Espera a que termine.")
             raise HTTPException(409, "Hay un turno o una provisión en curso. Espera a que termine.")
         try:
+            agent = service.agent(agent_id)
+            if not litellm.inference_key(store):
+                raise RuntimeUnavailable("Configura una clave virtual de LiteLLM en Configuración." if litellm.base_url() else "Configura la API key en Configuración para conversar con Hermes.")
+            if not agent.get("container_id"):
+                raise RuntimeUnavailable("Inicia el contenedor del agente antes de conversar.")
             previous = store.setting("reply-" + body.request_id)
             if previous:
                 if previous["agent_id"] != agent_id or previous["input"] != body.content:
@@ -400,7 +412,7 @@ def create_app(data_dir: Path | None = None, runtime=None):
                 store.message(agent_id, "user", body.content, "user")
                 store.set_setting("input-" + body.request_id, identity)
             store.set_setting("agent-language-" + agent_id, get_language())
-            answer, status = await service.runtime.chat(agent, store, body.content, body.request_id)
+            answer, status = await service.run_agent_turn(agent, body.content, body.request_id)
             store.message(agent_id, "assistant", answer)
             result = {"content": answer, "status": status}
             store.set_setting("reply-" + body.request_id, {"agent_id": agent_id, "input": body.content, "result": result})
@@ -453,6 +465,19 @@ def create_app(data_dir: Path | None = None, runtime=None):
             raise ValueError("La API key no tiene un formato válido.")
         store.secret("openai", body.api_key)
         return {"configured": True, "message": tr("Credencial guardada en el servidor. Reinicia los agentes para aplicar una rotación.")}
+
+    @app.put("/api/settings/litellm")
+    def save_litellm_key(body: KeyInput):
+        if not (url := litellm.base_url()):
+            raise ValueError("LiteLLM no está habilitado en esta instalación.")
+        if any(c.isspace() for c in body.api_key):
+            raise ValueError("La API key no tiene un formato válido.")
+        try:
+            litellm.load_models(url, body.api_key)
+        except (httpx.HTTPError, ValueError, TypeError, KeyError):
+            raise ValueError("No se pudo cargar el catálogo de LiteLLM. Comprueba el gateway y la clave virtual.") from None
+        store.secret("litellm", body.api_key)
+        return {"configured": True}
 
     @app.delete("/api/settings/openai")
     def delete_key():

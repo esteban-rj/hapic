@@ -8,6 +8,7 @@ from pathlib import Path
 import httpx
 
 from .runtime import RuntimeUnavailable
+from . import litellm
 
 IMAGE_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif"}
 MAX_IMAGE_BYTES = 20 * 1024 * 1024
@@ -43,16 +44,21 @@ def atomic_write(path: Path, data: bytes):
 
 class ImageGenerator:
     def generate(self, key, prompt, size="1024x1024"):
+        gateway_model = litellm.image_model()
+        endpoint = litellm.base_url() if gateway_model else "https://api.openai.com/v1"
         if not key:
-            raise RuntimeUnavailable("Configura la credencial de OpenAI en Configuración.")
+            raise RuntimeUnavailable("Configura una clave virtual de LiteLLM en Configuración." if gateway_model else "Configura la credencial de OpenAI en Configuración.")
         if not isinstance(prompt, str) or not 1 <= len(prompt.strip()) <= 12_000:
             raise ValueError("El prompt de imagen debe tener entre 1 y 12000 caracteres.")
         if size not in {"1024x1024", "1536x1024", "1024x1536"}:
             raise ValueError("Tamaño de imagen no válido.")
         try:
+            body = {"model": gateway_model or os.getenv("HAPIC_IMAGE_MODEL", DEFAULT_IMAGE_MODEL), "prompt": prompt, "n": 1, "size": size, "quality": "medium", "output_format": "png"}
             with httpx.Client(timeout=httpx.Timeout(240, connect=10), trust_env=False) as client:
-                response = client.post("https://api.openai.com/v1/images/generations", headers={"Authorization": "Bearer " + key}, json={"model": os.getenv("HAPIC_IMAGE_MODEL", DEFAULT_IMAGE_MODEL), "prompt": prompt, "n": 1, "size": size, "quality": "medium", "output_format": "png"})
+                response = client.post(endpoint + "/images/generations", headers={"Authorization": "Bearer " + key}, json=body)
             if not response.is_success:
+                if gateway_model:
+                    raise RuntimeUnavailable(f"LiteLLM Images devolvió HTTP {response.status_code}. Comprueba el alias de imágenes y la clave virtual.")
                 raise RuntimeUnavailable(f"OpenAI Images devolvió HTTP {response.status_code}. Revisa acceso al modelo, saldo y credencial; no se guardó ninguna imagen.")
             encoded = response.json()["data"][0]["b64_json"]
             if not isinstance(encoded, str) or len(encoded) > MAX_IMAGE_BYTES * 4 // 3 + 4:

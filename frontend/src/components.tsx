@@ -1,6 +1,6 @@
 import { useI18n } from "./useI18n";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ModelSelect } from "./ModelSelect";
+import { AUTOMATIC_MODEL, ModelSelect, modelIsAvailable, preferredModel } from "./ModelSelect";
 import {
   ChevronRight,
   FileText,
@@ -20,10 +20,12 @@ import {
   agentRoles,
   imageUrl,
   type Agent,
+  type AgentRuntime,
   type Message,
   type Project,
   type AgentFile,
   type Template,
+  type LiteLLMConnection,
 } from "./api";
 
 export function Mark({ small = false }: { small?: boolean }) {
@@ -283,6 +285,10 @@ export function CreateAgentModal({ template, projects, agents, initialProjectId,
 
 export function Chat({
   agent,
+  gateway,
+  activeDelegation,
+  lastMessageId,
+  runtimeBusy,
   connected,
   changed,
   onSettings,
@@ -290,6 +296,10 @@ export function Chat({
   templates,
 }: {
   agent: Agent;
+  gateway?: LiteLLMConnection | null;
+  activeDelegation?: AgentRuntime["active_delegation"];
+  lastMessageId?: AgentRuntime["last_message_id"];
+  runtimeBusy?: boolean;
   connected: boolean;
   changed: () => Promise<void>;
   onSettings: () => void;
@@ -304,9 +314,13 @@ export function Chat({
   const bottom = useRef<HTMLDivElement>(null);
   const [model, setModel] = useState(agent.model);
   const [effort, setEffort] = useState(agent.effort);
+  const selectedModel = preferredModel(model, gateway);
+  const automaticModel = selectedModel === AUTOMATIC_MODEL;
+  const availableModel = modelIsAvailable(selectedModel, gateway);
+  const working = busy || runtimeBusy || Boolean(activeDelegation);
   useEffect(() => {
+    if (busy) return;
     let active = true;
-    setError("");
     api<Message[]>("/agents/" + agent.id + "/messages")
       .then((m) => {
         if (active) setMessages(m);
@@ -317,18 +331,18 @@ export function Chat({
     return () => {
       active = false;
     };
-  }, [agent.id, language]);
+  }, [agent.id, language, lastMessageId, busy]);
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [messages, busy]);
+  }, [messages, working]);
   async function send(e: React.FormEvent) {
     e.preventDefault();
-    if (!text.trim() || busy) return;
+    if (!text.trim() || working || !connected || !availableModel) return;
     setBusy(true);
     setError("");
     try {
-      if (model !== agent.model || effort !== agent.effort)
-        await put("/agents/" + agent.id + "/model", { model, effort });
+      if (selectedModel !== agent.model || effort !== agent.effort)
+        await put("/agents/" + agent.id + "/model", { model: selectedModel, effort });
       const input = text.trim();
       setText("");
       setMessages((m) => [
@@ -343,6 +357,7 @@ export function Chat({
       await changed();
     } catch (e) {
       setError((e as Error).message);
+      setText(text);
       setMessages(await api("/agents/" + agent.id + "/messages").catch(() => messages));
     } finally {
       setBusy(false);
@@ -411,16 +426,18 @@ export function Chat({
             {m.role !== "user" ? <Mark small /> : null}
             <div className="message-body">
               <span className="message-label">
-                {m.role === "user" ? t("Tú") : agent.name}
+                {m.role === "user" ? t(m.source === "delegation" ? "Delegación" : "Tú") : agent.name}
               </span>
               <MessageContent message={m} agent={agent} />
             </div>
           </div>
         ))}
-        {busy ? (
-          <div className="thinking">
-            <LoaderCircle className="spin" size={16} />
-            {t("{name} está trabajando…", { name: agent.name })}
+        {working ? (
+          <div className="thinking" role="status">
+            <LoaderCircle className="spin" size={16} aria-hidden="true" />
+            {activeDelegation?.status === "queued"
+              ? t("{name} tiene una delegación en cola…", { name: agent.name })
+              : t(activeDelegation ? "{name} está trabajando en una delegación…" : "{name} está trabajando…", { name: agent.name })}
           </div>
         ) : null}
         <div ref={bottom} />
@@ -455,31 +472,33 @@ export function Chat({
             <label>
               <span className="sr-only">{t("Modelo de la conversación")}</span>
               <ModelSelect
-                value={model}
+                value={selectedModel}
                 savedValue={agent.model}
                 onChange={setModel}
                 ariaLabel={t("Modelo de la conversación")}
-                disabled={busy}
+                disabled={working}
+                gateway={gateway}
               />
             </label>
-            <label>
+            {!gateway && <label>
               <span className="sr-only">{t("Razonamiento")}</span>
               <select
-                value={effort}
+                value={automaticModel ? AUTOMATIC_MODEL : effort}
                 onChange={(e) => setEffort(e.target.value)}
-                aria-label={t("Razonamiento de la conversación")}
-                disabled={busy}
+                aria-label={t(automaticModel ? "Razonamiento automático" : "Razonamiento de la conversación")}
+                disabled={working || automaticModel}
               >
+                {automaticModel && <option value={AUTOMATIC_MODEL}>Auto</option>}
                 {["low", "medium", "high", "xhigh", "max"].map((v) => (
                   <option key={v} value={v}>{t(v)}</option>
                 ))}
               </select>
-            </label>
+            </label>}
           </div>
           <button
             className="send"
             aria-label={t("Enviar mensaje")}
-            disabled={busy || !text.trim() || !connected}
+            disabled={working || !text.trim() || !connected || !availableModel}
           >
             {busy ? (
               <LoaderCircle className="spin" size={17} />
@@ -489,8 +508,9 @@ export function Chat({
           </button>
         </div>
       </form>
+      {!availableModel && <p className="chat-footnote">{t("Elige un modelo disponible en el catálogo de LiteLLM.")}</p>}
       <p className="chat-footnote">
-        {t("Estado y memoria locales. Las consultas y el contexto se envían a OpenAI.")}
+        {t(gateway ? "Estado y memoria locales. LiteLLM envía las consultas y el contexto al proveedor del modelo." : "Estado y memoria locales. Las consultas y el contexto se envían a OpenAI.")}
       </p>
     </section>
   );

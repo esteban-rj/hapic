@@ -13,8 +13,16 @@ import httpx
 import yaml
 from .tool_catalog import effective_tools
 from .i18n import get_language, tr
+from . import litellm
+from .model_routing import resolve_turn_model
 from .templates import agent_instructions, project_roster
 from .preparation import Preparation
+
+GATEWAY_RESTART_REQUIRED = "Reinicia el agente para aplicar la conexión con LiteLLM."
+
+
+def gateway_configuration_changed(container, store):
+    return dict(container.labels).get("hapic.litellm", "") != litellm.runtime_signature(store)
 
 
 def platform_instructions(agent, store=None):
@@ -136,9 +144,19 @@ class DockerRuntime:
 
     def configuration(self, agent, store):
         tools = effective_tools(agent, store)
+        gateway = litellm.hermes_base_url() if litellm.base_url() else ""
+        defaults = resolve_turn_model(agent, gateway_model=litellm.best_model() if gateway else None)
+        model = {"provider": "openai-api", "default": defaults["model"], "base_url": "https://api.openai.com/v1", "api_mode": "codex_responses"}
+        providers = {}
+        if gateway:
+            model.update(provider=litellm.HERMES_PROVIDER, base_url=gateway)
+            providers["providers"] = {
+                "litellm": {"api": gateway, "key_env": "HAPIC_LITELLM_API_KEY", "transport": "codex_responses", "default_model": defaults["model"]}
+            }
         return {
-            "model": {"provider": "openai-api", "default": agent["model"], "base_url": "https://api.openai.com/v1", "api_mode": "codex_responses"},
-            "agent": {"reasoning_effort": agent["effort"], "max_turns": 30, "disabled_toolsets": ["terminal", "file", "web", "browser", "code_execution", "delegation", "cronjob", "image", "tts", "skills", "skill_manage"]},
+            "model": model,
+            **providers,
+            "agent": {**({"reasoning_effort": defaults["effort"]} if not gateway else {}), "max_turns": 30, "disabled_toolsets": ["terminal", "file", "web", "browser", "code_execution", "delegation", "cronjob", "image", "tts", "skills", "skill_manage"]},
             "terminal": {"backend": "local", "cwd": "/workspace"},
             "platform_toolsets": {"api_server": ["memory", "hapic"]},
             "gateway": {"platforms": {"api_server": {"direct_model_requests": True}}},
@@ -151,7 +169,7 @@ class DockerRuntime:
         spec = {"version": self.spec_version, "config": self.configuration(agent, store),
                 "image": self.image, "network": self.network,
                 "base": self.host_path(store.agent_path(agent), store),
-                "secrets": [store.api_key() or "", store.secret(agent["id"] + "-api") or "", store.secret(agent["id"] + "-mcp") or ""]}
+                "secrets": [litellm.inference_key(store) or "", store.secret(agent["id"] + "-api") or "", store.secret(agent["id"] + "-mcp") or ""]}
         return hashlib.sha256(json.dumps(spec, sort_keys=True).encode()).hexdigest()
 
     def prepare(self, agent, store):
@@ -164,12 +182,14 @@ class DockerRuntime:
 
     def start(self, agent, store):
         preparation = Preparation.current(store, agent["id"]) or Preparation.create(store, agent["id"], reuse_profile=True)
-        preparation.start("requirements", "Comprobando la conexión con Docker y la credencial de OpenAI.")
+        gateway = litellm.base_url()
+        preparation.start("requirements", "Comprobando la conexión con Docker y la credencial de LiteLLM." if gateway else "Comprobando la conexión con Docker y la credencial de OpenAI.")
         client = self.client()
         client.api.timeout = 600  # Official image downloads can take several minutes.
-        if not store.api_key():
-            raise RuntimeUnavailable("Configura una API key de OpenAI en Configuración.")
-        preparation.complete("requirements", "Docker responde y hay una credencial de OpenAI configurada. El acceso al modelo se verifica al conversar.")
+        key = litellm.inference_key(store)
+        if not key:
+            raise RuntimeUnavailable("Configura una clave virtual de LiteLLM en Configuración." if gateway else "Configura una API key de OpenAI en Configuración.")
+        preparation.complete("requirements", "Docker responde y hay una clave de LiteLLM configurada. El acceso al modelo se verifica al conversar." if gateway else "Docker responde y hay una credencial de OpenAI configurada. El acceso al modelo se verifica al conversar.")
         preparation.start("configuration", "Preparando la configuración de Hermes y las herramientas autorizadas.")
         self.prepare(agent, store)
         preparation.complete("configuration", "Configuración de modelo, herramientas y permisos preparada.")
@@ -201,11 +221,11 @@ class DockerRuntime:
         base = store.agent_path(agent)
         container = client.containers.run(
             self.image, ["gateway", "run"], name=name, detach=True,
-            environment={"HERMES_HOME": "/opt/data", "OPENAI_API_KEY": store.api_key(), "API_SERVER_ENABLED": "true", "API_SERVER_HOST": "0.0.0.0", "API_SERVER_PORT": "8642", "API_SERVER_KEY": store.token(agent["id"], "api"), "HAPIC_MCP_TOKEN": store.token(agent["id"], "mcp"), "HERMES_DASHBOARD": "0"},
+            environment={"HERMES_HOME": "/opt/data", "HAPIC_LITELLM_API_KEY" if gateway else "OPENAI_API_KEY": key, "API_SERVER_ENABLED": "true", "API_SERVER_HOST": "0.0.0.0", "API_SERVER_PORT": "8642", "API_SERVER_KEY": store.token(agent["id"], "api"), "HAPIC_MCP_TOKEN": store.token(agent["id"], "mcp"), "HERMES_DASHBOARD": "0"},
             volumes={self.host_path(base / "hermes", store): {"bind": "/opt/data", "mode": "rw"}, self.host_path(base / "workspace", store): {"bind": "/workspace", "mode": "rw"}},
             ports={"8642/tcp": ("127.0.0.1", None)} if not os.getenv("HAPIC_IN_DOCKER") else {},
             network=self.network, extra_hosts={"host.docker.internal": "host-gateway"},
-            labels={"hapic.agent": agent["id"], "hapic.installation": str(store.root), "hapic.runtime": self.fingerprint(agent, store)},
+            labels={"hapic.agent": agent["id"], "hapic.installation": str(store.root), "hapic.runtime": self.fingerprint(agent, store), "hapic.litellm": litellm.runtime_signature(store, key=key)},
             restart_policy={"Name": "unless-stopped"}, mem_limit="2g", nano_cpus=2_000_000_000,
             cap_drop=["NET_RAW", "SYS_ADMIN"], security_opt=["no-new-privileges:true"],
         )
@@ -237,16 +257,26 @@ class DockerRuntime:
 
     def inspect(self, agent, store):
         if not agent.get("container_id"):
-            return {"status": agent["status"], "ready": False}
+            return {"status": "stopped" if agent["status"] == "running" else agent["status"], "ready": False}
         try:
             container = self.client().containers.get(agent["container_id"])
+            if gateway_configuration_changed(container, store):
+                return {"status": "stopped", "ready": False, "message": GATEWAY_RESTART_REQUIRED}
             status = container.status
             ready = False
+            busy = False
             if status == "running":
                 r = httpx.get(self.url(container) + "/health/detailed", headers={"Authorization": "Bearer " + store.token(agent["id"], "api")}, timeout=3)
-                ready = r.is_success and r.json().get("status") == "ok"
-            return {"status": "running" if ready else ("starting" if status == "running" else "stopped"), "ready": ready, "container": container.name, "image": container.image.tags, "container_id": container.short_id}
-        except (RuntimeUnavailable, docker.errors.DockerException, httpx.HTTPError, ValueError):
+                if r.is_success:
+                    health = r.json()
+                    ready = health.get("status") == "ok"
+                    api_server = health.get("api_server")
+                    active_runs = api_server.get("active_runs") if isinstance(api_server, dict) else None
+                    busy = isinstance(active_runs, int) and active_runs > 0
+            return {"status": "running" if ready else ("starting" if status == "running" else "stopped"), "ready": ready, "busy": busy, "container": container.name, "image": container.image.tags, "container_id": container.short_id}
+        except docker.errors.NotFound:
+            return {"status": "stopped", "ready": False}
+        except (RuntimeUnavailable, docker.errors.DockerException, httpx.HTTPError, AttributeError, ValueError):
             return {"status": "unavailable", "ready": False, "message": "No se pudo comprobar el runtime Docker/Hermes."}
 
     async def chat(self, agent, store, text, request_id):
@@ -255,13 +285,18 @@ class DockerRuntime:
             url = self.url(container)
         except (RuntimeUnavailable, docker.errors.DockerException):
             raise RuntimeUnavailable("No se pudo conectar al contenedor. Revisa Docker e inicia el agente.") from None
+        if gateway_configuration_changed(container, store):
+            raise RuntimeUnavailable(GATEWAY_RESTART_REQUIRED)
         headers = {
             "Authorization": "Bearer " + store.token(agent["id"], "api"),
             "Accept-Language": get_language(),
             "Idempotency-Key": request_id,
             "X-Hermes-Session-Key": f"hapic:{agent['organization_id']}:{agent['project_id']}:{agent['id']}",
         }
-        payload = {"model": agent["model"], "provider": "openai-api", "model_options": {"reasoning_effort": agent["effort"]}, "conversation": f"hapic-{agent['id']}", "input": text, "instructions": platform_instructions(agent, store), "store": True, "stream": False}
+        gateway = litellm.base_url()
+        payload = {"model": agent["model"], "provider": litellm.HERMES_PROVIDER if gateway else "openai-api", "conversation": f"hapic-{agent['id']}", "input": text, "instructions": platform_instructions(agent, store), "store": True, "stream": False}
+        if not gateway:
+            payload["model_options"] = {"reasoning_effort": agent["effort"]}
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(600, connect=10), trust_env=False) as client:
                 response = await client.post(url + "/v1/responses", headers=headers, json=payload)
@@ -276,8 +311,11 @@ class DockerRuntime:
                     raise ValueError("Invalid Hermes response")
                 data = {}
             if not response.is_success or data.get("status") in {"failed", "cancelled"} or data.get("error"):
-                secrets = (store.api_key(), headers["Authorization"].removeprefix("Bearer "), store.token(agent["id"], "mcp"))
-                raise RuntimeUnavailable(hermes_error(data, response.status_code, secrets))
+                secrets = (litellm.inference_key(store), store.api_key(), headers["Authorization"].removeprefix("Bearer "), store.token(agent["id"], "mcp"))
+                error = hermes_error(data, response.status_code, secrets)
+                if gateway and error.startswith("OpenAI rechazó la credencial"):
+                    error = "LiteLLM rechazó la solicitud (401). Comprueba la clave virtual, el proveedor del modelo y el runtime del agente."
+                raise RuntimeUnavailable(error)
             answer = response_text(data)
             if not answer:
                 raise RuntimeUnavailable("Hermes respondió sin un mensaje final; no se ha inventado una respuesta.")

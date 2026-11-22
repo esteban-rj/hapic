@@ -84,17 +84,53 @@ Crea primero el arquitecto y después el coder, seleccionando ese arquitecto del
 
 El modelo inicial es `gpt-6.1-sol` y el esfuerzo `xhigh`. Ambos se pueden elegir mediante selectores para agentes nuevos en Configuración y para un agente existente desde el compositor. El selector de modelos ofrece nombres legibles y conserva los identificadores personalizados ya guardados. Los cambios por agente se envían en el siguiente turno mediante `provider: openai-api` y `model_options.reasoning_effort`. No se usa la suscripción ni se importan credenciales de Codex.
 
+### Selección automática del modelo
+
+En **Conversación**, selecciona **Automático** debajo del cuadro de mensaje y envía tu encargo. La opción queda guardada para ese agente y se aplica también a las delegaciones que reciba. Para activarla en perfiles nuevos, usa **Configuración → Modelo predeterminado**. Puedes volver a elegir un modelo fijo desde el mismo selector.
+
+Hapic usa reglas locales que consideran el texto y su extensión. Una traducción corta puede usar GPT-6 Luna, una implementación habitual GPT-6.1 Sol y una migración o refactorización GPT-6 Astra. El modo ajusta también el razonamiento y conserva la conversación. Consulta **Actividad** para ver el modelo que se usó. El turno requiere acceso al modelo elegido con tu credencial de OpenAI.
+
+### Automatic model selection
+
+In **Conversation**, choose **Automatic** below the message box and send your request. The agent keeps that setting and also uses it for incoming delegations. For new agents, use **Settings → Default model**. You can switch back to a fixed model from the same selector.
+
+Hapic uses local rules based on the wording and length of the request. A short translation can use GPT-6 Luna, a routine implementation GPT-6.1 Sol, and a migration or refactor GPT-6 Astra. Automatic mode also sets reasoning effort and keeps the same conversation. Check **Activity** for the model used. Your OpenAI credential needs access to the selected model.
+
+### LiteLLM, modelos y costes
+
+1. En el `.env` privado, configura `LITELLM_MASTER_KEY` con prefijo `sk-`, `LITELLM_SALT_KEY` y `LITELLM_POSTGRES_PASSWORD`. Genera un valor hexadecimal distinto para cada uno con `openssl rand -hex 32`. Conserva los valores del salt y de PostgreSQL al reiniciar.
+2. Ejecuta `./scripts/start-docker.sh --litellm` o, en Windows, `./scripts/start-docker.ps1 -LiteLLM`. Los servicios de LiteLLM y PostgreSQL se añaden a Hapic. El panel queda en `http://127.0.0.1:4000/ui`, o en el puerto fijado con `HAPIC_LITELLM_PORT`.
+3. En Hapic, abre **Configuración → LiteLLM → Abrir panel de LiteLLM**. Inicia sesión en LiteLLM con `admin` y tu clave maestra. En **Models + Endpoints**, registra los modelos conversacionales y credenciales de tus proveedores. Para **Best model**, crea un **Auto Router** de complejidad con nombre `best-model`, asigna los modelos a sus niveles y guárdalo. Puedes usar otro nombre mediante `HAPIC_LITELLM_BEST_MODEL`.
+4. En LiteLLM, crea una **Virtual Key** para Hapic que autorice los modelos y el alias del router. Guarda esa clave en **Configuración → LiteLLM** o configura `HAPIC_LITELLM_API_KEY` en el servidor. Inicia o reinicia los agentes que vayan a usarla. El selector muestra únicamente los modelos autorizados por la clave. **Best model** es el predeterminado cuando su alias está disponible y se usa si el modelo guardado de un agente sale del catálogo. Puedes elegir otro modelo autorizado. Pulsa **Actualizar catálogo** tras editarlo en LiteLLM.
+5. En LiteLLM abre **Usage** o **Logs** para consultar los costes calculados, los tokens y el modelo que atendió cada solicitud. Los modelos con precios personalizados requieren configurar sus tarifas en LiteLLM. Hapic envía al gateway las conversaciones y delegaciones, incluidos los pasos de inferencia de Hermes. Si quieres incluir las imágenes, configura `HAPIC_LITELLM_IMAGE_MODEL` con un alias autorizado que devuelva PNG en base64. Sin ese alias, la herramienta de imágenes usa la conexión directa de OpenAI y su consumo se consulta allí.
+
+Puedes conectar un gateway LiteLLM existente con `HAPIC_LITELLM_BASE_URL` (por ejemplo `https://gateway.example/v1`) y `HAPIC_LITELLM_DASHBOARD_URL`. Si Hermes necesita una dirección de red distinta, usa `HAPIC_LITELLM_HERMES_BASE_URL`. La configuración incluida persiste el catálogo y el consumo en PostgreSQL y activa `litellm_settings.drop_params` para omitir parámetros que algunos proveedores no admiten. [Panel y configuración](https://docs.litellm.ai/docs/proxy/configuration/ui) · [Auto Router](https://docs.litellm.ai/docs/proxy/auto_routing) · [Seguimiento de costes](https://docs.litellm.ai/docs/proxy/cost_tracking)
+
+### LiteLLM models and spend
+
+1. In your private `.env`, set `LITELLM_MASTER_KEY` with the `sk-` prefix, `LITELLM_SALT_KEY`, and `LITELLM_POSTGRES_PASSWORD`. Generate distinct hex values with `openssl rand -hex 32`. Keep the salt and PostgreSQL password stable across restarts.
+2. Run `./scripts/start-docker.sh --litellm` or, on Windows, `./scripts/start-docker.ps1 -LiteLLM`. This adds LiteLLM and PostgreSQL to Hapic. The dashboard is available at `http://127.0.0.1:4000/ui`, or the port set by `HAPIC_LITELLM_PORT`.
+3. In Hapic go to **Settings → LiteLLM → Open LiteLLM dashboard**. Sign in with `admin` and your master key. In **Models + Endpoints**, register your providers' conversational models and credentials. For **Best model**, create a complexity **Auto Router** named `best-model`, assign models to its tiers, and save it. You can set a different name with `HAPIC_LITELLM_BEST_MODEL`.
+4. Create a LiteLLM **Virtual Key** for Hapic that allows the models and router alias. Save it in **Settings → LiteLLM** or set `HAPIC_LITELLM_API_KEY` on the server. Start or restart the agents that will use it. The selector shows only models authorized by that key. **Best model** is the default when its alias is available, and is used if an agent’s saved model leaves the catalog. You can choose another authorized model. Click **Refresh catalog** after editing the catalog in LiteLLM.
+5. Open **Usage** or **Logs** in LiteLLM to inspect calculated costs, tokens, and the model that served each request. Configure rates in LiteLLM for models with custom pricing. Hapic sends chats and delegations through the gateway, including Hermes inference steps. For image calls, set `HAPIC_LITELLM_IMAGE_MODEL` to an authorized alias that returns base64 PNG. Otherwise the image tool uses its direct OpenAI connection and that spend is recorded there.
+
+You can connect an existing LiteLLM gateway with `HAPIC_LITELLM_BASE_URL` (for example `https://gateway.example/v1`) and `HAPIC_LITELLM_DASHBOARD_URL`. Set `HAPIC_LITELLM_HERMES_BASE_URL` if Hermes needs a different network address. The bundled setup persists the catalog and spend in PostgreSQL and enables `litellm_settings.drop_params` to omit parameters that some providers do not support. [Dashboard and configuration](https://docs.litellm.ai/docs/proxy/configuration/ui) · [Auto Router](https://docs.litellm.ai/docs/proxy/auto_routing) · [Spend tracking](https://docs.litellm.ai/docs/proxy/cost_tracking)
+
 ## Delegaciones entre agentes
 
 Los especialistas pueden encargar trabajo directamente a un colega del mismo proyecto. Cada perfil define sus responsabilidades, el contexto que necesita y los entregables que devuelve; las memorias y los workspaces siguen siendo privados.
 
 Abre **Delegaciones** y elige un proyecto para consultar quién envía y recibe cada tarea, filtrar por agente o estado y revisar contexto, resultados y errores. Puedes copiar la respuesta y abrir la conversación de los participantes. La vista se actualiza cada seis segundos mientras está visible y conserva el historial entre sesiones.
 
-La ejecución requiere una API key de OpenAI y el runtime Docker del destinatario iniciado; puede generar consumo de API. Consultar el historial no ejecuta agentes. No hay reintentos ni continuación automática del remitente: este recupera el resultado con `get_task_status`. Una tarea finalizada confirma que terminó el turno; la respuesta puede indicar trabajo parcial o bloqueado. Se rechazan duplicados con contenido distinto, autodelegaciones, otros proyectos, ciclos y más de cuatro niveles. Tras un reinicio, las tareas interrumpidas quedan fallidas para su revisión.
+Hapic comprueba la disponibilidad del runtime del destinatario antes de ejecutar. Si el runtime está apagado, se está preparando o el agente está ocupado, el remitente puede consultar la causa con `get_task_status`. La pestaña **Conversación** del destinatario muestra las delegaciones en cola o en curso, pausa el envío de mensajes y actualiza el historial automáticamente para mostrar el resultado.
+
+La ejecución requiere una credencial de OpenAI o LiteLLM y el runtime Docker del destinatario iniciado. Puede generar consumo de API. El remitente recupera el resultado con `get_task_status`. Una tarea finalizada confirma que terminó el turno y la respuesta puede indicar trabajo parcial o bloqueado. Se rechazan duplicados con contenido distinto, autodelegaciones, otros proyectos, ciclos y más de cuatro niveles. Tras un reinicio, las tareas interrumpidas quedan fallidas para su revisión.
 
 Specialists can delegate work directly to a colleague in the same project, using role contracts that define responsibilities, required context and expected deliverables. Memories and workspaces remain private. Open **Delegaciones** to filter by project, participant or status, inspect context, results and errors, copy responses and open participant conversations. The visible panel refreshes every six seconds and keeps its history across sessions.
 
-Execution requires an OpenAI API key and the recipient's running Docker runtime, and may incur API usage. Reading history does not run agents. There are no automatic retries or sender continuation; the sender retrieves results with `get_task_status`. A completed turn may report partial or blocked work. The server rejects conflicting duplicate requests, self-delegation, cross-project requests, cycles and chains beyond four levels. Interrupted tasks are marked failed after a restart for review.
+Hapic checks the recipient’s runtime before execution. If the runtime is off or starting, or the recipient is busy, the sender can read the cause with `get_task_status`. The recipient’s **Conversation** tab shows queued and in-progress delegations, pauses sending, and refreshes history automatically to display the result.
+
+Execution requires an OpenAI or LiteLLM credential and the recipient’s running Docker runtime, and may incur API usage. The sender retrieves results with `get_task_status`. A completed turn may report partial or blocked work. The server rejects conflicting duplicate requests, self-delegation, cross-project requests, cycles and chains beyond four levels. Interrupted tasks are marked failed after a restart for review.
 
 Consulta el [panel de delegaciones](dashboard.md#sigue-las-delegaciones-de-tu-equipo), la [API de colaboración](api.md#delegación-directa) y la [arquitectura](architecture.md#colaboración-directa-entre-agentes).
 

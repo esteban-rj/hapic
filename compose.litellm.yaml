@@ -1,0 +1,50 @@
+services:
+  hapic:
+    environment:
+      HAPIC_LITELLM_BASE_URL: http://litellm:4000/v1
+      HAPIC_LITELLM_HERMES_BASE_URL: http://litellm:4000/v1
+      HAPIC_LITELLM_DASHBOARD_URL: http://127.0.0.1:${HAPIC_LITELLM_PORT:-4000}/ui
+    depends_on:
+      litellm:
+        condition: service_started
+
+  litellm:
+    image: ghcr.io/berriai/litellm:v1.108.5
+    command: ["--config", "/app/hapic-litellm.yaml", "--host", "0.0.0.0", "--port", "4000"]
+    ports:
+      - "127.0.0.1:${HAPIC_LITELLM_PORT:-4000}:4000"
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:?Set the LiteLLM admin key in .env}
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY:?Set the persistent LiteLLM salt key in .env}
+      DATABASE_URL: postgresql://litellm:${LITELLM_POSTGRES_PASSWORD:?Set the LiteLLM PostgreSQL password in .env}@litellm-db:5432/litellm
+      STORE_MODEL_IN_DB: "True"
+    volumes:
+      - ./litellm.config.yaml:/app/hapic-litellm.yaml:ro
+    networks: [hapic, litellm-db]
+    depends_on:
+      litellm-db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  litellm-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: litellm
+      POSTGRES_DB: litellm
+      POSTGRES_PASSWORD: ${LITELLM_POSTGRES_PASSWORD:?Set the LiteLLM PostgreSQL password in .env}
+    volumes:
+      - litellm-data:/var/lib/postgresql/data
+    networks: [litellm-db]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "litellm", "-d", "litellm"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+networks:
+  litellm-db:
+    internal: true
+
+volumes:
+  litellm-data:

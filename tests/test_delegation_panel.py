@@ -1,4 +1,5 @@
 """Operator API for the delegation panel; real SQLite, no model or Docker calls."""
+from threading import Event, Thread
 from unittest.mock import patch
 
 import pytest
@@ -14,7 +15,7 @@ def panel(tmp_path, monkeypatch):
     app = create_app(tmp_path, TestRuntime())
     service = app.state.service
     with TestClient(app, base_url='http://localhost') as client:
-        client.get('/api/bootstrap')
+        client.headers['X-Hapic-CSRF'] = client.get('/api/bootstrap').json()['csrf']
         org = service.create_org('Studio')
         project = service.create_project(org['id'], 'Product')
         sender = service.create_agent(project['id'], 'Lin', 'ux')
@@ -42,6 +43,38 @@ def test_empty_panel_and_input_validation(panel):
     assert client.get(path + '?status=unknown').status_code == 400
     assert client.get(path + '?agent_id=missing').status_code == 404
     assert client.get(path + '/missing').status_code == 404
+
+
+def test_recipient_runtime_reports_delegation_and_message_changes(panel, monkeypatch):
+    client, service, _, sender, recipient = panel
+    monkeypatch.setenv('OPENAI_API_KEY', 'test-only')
+    service.store.execute("UPDATE agents SET status='running',container_id='test' WHERE id=?", (recipient['id'],))
+    service.runtime.inspect = lambda *_: {'status': 'running', 'ready': True}
+    started, release = Event(), Event()
+
+    async def chat(*_):
+        started.set()
+        assert release.wait(5)
+        return 'Resultado de la delegación', 'completed'
+
+    service.runtime.chat = chat
+    task = delegate(service, sender, recipient, 'activity')
+    endpoint = f"/api/agents/{recipient['id']}"
+    assert client.get(endpoint + '/runtime').json()['active_delegation'] == {'id': task['id'], 'status': 'queued'}
+    worker = Thread(target=service.run_delegated_task, args=(task['id'],))
+    worker.start()
+    try:
+        assert started.wait(5)
+        active = client.get(endpoint + '/runtime').json()
+        assert active['ready'] and active['active_delegation'] == {'id': task['id'], 'status': 'running'}
+        blocked = client.post(endpoint + '/chat', json={'content': 'Hola'}, headers={'Accept-Language': 'en'})
+        assert blocked.status_code == 409 and 'handling a delegation' in blocked.json()['detail']
+    finally:
+        release.set()
+        worker.join(5)
+    finished = client.get(endpoint + '/runtime').json()
+    assert finished['active_delegation'] is None and finished['last_message_id'] > active['last_message_id']
+    assert client.get(endpoint + '/messages').json()[-1]['content'] == 'Resultado de la delegación'
 
 
 def test_list_names_filters_counts_pagination_and_full_results(panel):

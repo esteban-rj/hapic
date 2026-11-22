@@ -22,7 +22,7 @@ Los hosts de la interfaz y API se limitan a `localhost`, `127.0.0.1` y `::1`. Lo
 | GET | `/api/templates` | Catálogo UX, diseñador, arquitecto, coder y community manager, con recomendaciones |
 | POST | `/api/projects/{project_id}/agents` | Crear perfil: `{"name":"Nora","template":"ux"}`; coder exige `planner_id` |
 | POST | `/api/agents/{agent_id}/start` | Solicitar inicio o recreación del runtime |
-| GET | `/api/agents/{agent_id}/runtime` | Estado actual y readiness de Hermes; devuelve `provisioning` y `ready: false` durante una provisión |
+| GET | `/api/agents/{agent_id}/runtime` | Estado, readiness y actividad real de Hermes en `busy`, `active_delegation` con ID y estado, y `last_message_id` para refrescar el historial. Durante la provisión devuelve `provisioning` y `ready: false` |
 | GET | `/api/agents/{agent_id}/preparation` | Último intento con siete etapas, estados, duración y registros seguros; `null` para perfiles antiguos sin registro. Requiere sesión y pertenencia |
 | GET | `/api/agents/{agent_id}/messages` | Historial visible de la plataforma |
 | GET | `/api/agents/{agent_id}/files` | Lista plana de entregables propios con nombre, ruta, tamaño y tipo |
@@ -36,6 +36,7 @@ Los hosts de la interfaz y API se limitan a `localhost`, `127.0.0.1` y `::1`. Lo
 | PUT | `/api/settings/model` | Modelo y esfuerzo predeterminados para nuevos agentes |
 | PUT | `/api/agents/{agent_id}/model` | Modelo y esfuerzo de un agente existente |
 | PUT | `/api/settings/openai` | Guardar o reemplazar `api_key` cifrada en el servidor con prioridad sobre `OPENAI_API_KEY`; nunca devuelve su valor |
+| PUT | `/api/settings/litellm` | Validar y guardar una clave virtual de LiteLLM cifrada; el catálogo autorizado y la URL del panel se consultan en `/api/capabilities` |
 | DELETE | `/api/settings/openai` | Eliminar la credencial guardada y volver a `OPENAI_API_KEY` si está definida; devuelve `configured` |
 | GET | `/api/tools` | Catálogo de integraciones reutilizables |
 | GET | `/api/settings/youtube` | Estado, origen (`file`, `server`, `none`), scopes y URI de retorno; sin secretos o ruta privada |
@@ -48,6 +49,8 @@ Los hosts de la interfaz y API se limitan a `localhost`, `127.0.0.1` y `::1`. Lo
 | GET | `/api/projects/{project_id}/connections/{connection_id}/videos` | Página de vídeos real; `page_token` opcional |
 
 El nivel de razonamiento admitido por la plataforma es `low`, `medium`, `high`, `xhigh` o `max`. La compatibilidad del modelo elegido también depende del proveedor.
+
+Los dos endpoints de configuración de modelo aceptan `"model": "auto"` y `effort` conserva el valor manual. Con LiteLLM habilitado, `auto` resuelve al alias `best-model` configurado en el gateway y el razonamiento lo controla LiteLLM o el modelo. Las selecciones manuales usan el identificador exacto del catálogo autorizado. Sin LiteLLM, Hapic resuelve localmente el modelo y el razonamiento de los turnos automáticos.
 
 Un turno puede incluir, por ejemplo:
 

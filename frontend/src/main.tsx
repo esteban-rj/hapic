@@ -58,7 +58,8 @@ import {
   ImagePreview,
 } from "./components";
 import "./style.css";
-import { ModelSelect } from "./ModelSelect";
+import { AUTOMATIC_MODEL, ModelSelect, modelIsAvailable, preferredModel } from "./ModelSelect";
+import { LiteLLMSettings } from "./LiteLLMSettings";
 import { ToolsPanel } from "./ToolsPanel";
 import { LanguageSelector } from "./LanguageSelector";
 import { getLanguage } from "./i18n";
@@ -140,6 +141,11 @@ function App() {
   const [model, setModel] = useState("gpt-6.1-sol");
   const [effort, setEffort] = useState("xhigh");
   const [key, setKey] = useState("");
+  const gateway = caps?.litellm;
+  const selectedDefaultModel = preferredModel(model, gateway);
+  const gatewayEnabled = Boolean(gateway);
+  const inferenceConfigured = gateway?.configured ?? !!caps?.openai.configured;
+  const automaticLabel = t(gateway ? "Best model" : "Automático");
   const refresh = useCallback(async () => {
     const requestedLanguage = language;
     const [s, c] = await Promise.all([
@@ -168,6 +174,12 @@ function App() {
       .catch((e) => { if (active) setError(e.message); });
     return () => { active = false; };
   }, [refresh]);
+  useEffect(() => {
+    if (!gatewayEnabled) return;
+    const reload = () => { void refresh().catch((error: Error) => setError(error.message)); };
+    window.addEventListener("focus", reload);
+    return () => window.removeEventListener("focus", reload);
+  }, [gatewayEnabled, refresh]);
   useEffect(() => {
     if (!state) return;
     const query = new URLSearchParams(window.location.search);
@@ -710,6 +722,7 @@ function App() {
                         agents={agents}
                         projects={projects}
                         open={openAgent}
+                        gateway={gatewayEnabled}
                       />
                     </>
                   )}
@@ -728,11 +741,11 @@ function App() {
                       <span
                         className={
                           "connection-dot " +
-                          (caps?.openai.configured ? "ok" : "")
+                          (inferenceConfigured ? "ok" : "")
                         }
                       />
-                      OpenAI{" "}
-                      {caps?.openai.configured ? t("configurado") : t("pendiente")}
+                      {gateway ? "LiteLLM" : "OpenAI"}{" "}
+                      {inferenceConfigured ? t("configurado") : t("pendiente")}
                     </span>
                     <button
                       className="text-button"
@@ -789,8 +802,8 @@ function App() {
                     </div>
                   </div>
                   <div className="hapic-panel-footer">
-                    <span className="tiny">{state.settings.model}</span>
-                    <span className="tag">{state.settings.effort}</span>
+                    <span className="tiny">{state.settings.model === AUTOMATIC_MODEL ? automaticLabel : state.settings.model}</span>
+                    {!gateway && state.settings.model !== AUTOMATIC_MODEL && <span className="tag">{state.settings.effort}</span>}
                   </div>
                 </aside>
               </div>
@@ -853,13 +866,17 @@ function App() {
                     <code>{agent.id}</code>
                   </div>
                   {tab === "Conversación" ? (
-                    <AgentConversation agent={agent} runtime={runtime} preparation={detail?.preparation} configured={!!caps?.openai.configured} onSettings={() => setPage("Configuración")}>
+                    <AgentConversation agent={agent} runtime={runtime} preparation={detail?.preparation} configured={inferenceConfigured} gateway={gatewayEnabled} onSettings={() => setPage("Configuración")}>
                       <div className="agent-layout">
                         <Chat
                           key={agent.id}
                           agent={agent}
+                          gateway={gateway}
+                          activeDelegation={runtime?.active_delegation}
+                          lastMessageId={runtime?.last_message_id}
+                          runtimeBusy={runtime?.busy}
                           connected={
-                            agent.status === "running" && !!runtime?.ready && !!caps?.openai.configured
+                            agent.status === "running" && !!runtime?.ready && inferenceConfigured
                           }
                           changed={refresh}
                           onSettings={() => setPage("Configuración")}
@@ -880,7 +897,7 @@ function App() {
                           )}
                           {agent.planner_id ? <div className="card compact-card"><h3>{t("Arquitecto vinculado")}</h3><p>{state.agents.find((a) => a.id === agent.planner_id)?.name}</p><p>{t("Lee su plan publicado antes de escribir código.")}</p></div> : null}
                           <button className="secondary" onClick={() => setPage("Plantillas")}><Plus size={15} /> {t("Añadir especialista")}</button>
-                          <RuntimeCard agent={agent} runtime={runtime} />
+                          <RuntimeCard agent={agent} runtime={runtime} gateway={gatewayEnabled} />
                         </div>
                       </div>
                     </AgentConversation>
@@ -971,6 +988,7 @@ function App() {
                   agents={agents}
                   projects={projects}
                   open={openAgent}
+                  gateway={gatewayEnabled}
                 />
               )
             ) : null}
@@ -1039,8 +1057,9 @@ function App() {
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
+                      if (!modelIsAvailable(selectedDefaultModel, gateway)) return;
                       action(async () => {
-                        await put("/settings/model", { model, effort });
+                        await put("/settings/model", { model: selectedDefaultModel, effort });
                         await refresh();
                         setToast(t("Preferencias guardadas para agentes nuevos."));
                       });
@@ -1049,30 +1068,38 @@ function App() {
                     <p>
                       {t("El punto de partida para Hapic y los nuevos agentes. Puedes cambiarlo en cada conversación.")}
                     </p>
-                    <label htmlFor="default-model">{t("Modelo de OpenAI")}</label>
+                    <label htmlFor="default-model">{t(gateway ? "Modelo de LiteLLM" : "Modelo de OpenAI")}</label>
                     <ModelSelect
                       id="default-model"
-                      value={model}
+                      value={selectedDefaultModel}
                       savedValue={state.settings.model}
                       onChange={setModel}
                       disabled={busy}
+                      gateway={gateway}
                     />
+                    {!gateway && <>
                     <label htmlFor="default-effort">
                       {t("Esfuerzo de razonamiento")}
                     </label>
                     <select
                       id="default-effort"
-                      value={effort}
+                      value={model === AUTOMATIC_MODEL ? AUTOMATIC_MODEL : effort}
                       onChange={(e) => setEffort(e.target.value)}
+                      disabled={busy || model === AUTOMATIC_MODEL}
                     >
+                      {model === AUTOMATIC_MODEL && <option value={AUTOMATIC_MODEL}>{t("Razonamiento automático")}</option>}
                       {["low", "medium", "high", "xhigh", "max"].map((v) => (
                         <option key={v} value={v}>{t(v)}</option>
                       ))}
                     </select>
                     <p className="field-help">
-                      {t("Se utiliza Responses API. Un esfuerzo mayor puede aumentar el tiempo de respuesta y el consumo.")}
+                      {model === AUTOMATIC_MODEL
+                        ? t("Hapic elige el modelo y el razonamiento según cada mensaje o delegación.")
+                        : t("Se utiliza Responses API. Un esfuerzo mayor puede aumentar el tiempo de respuesta y el consumo.")}
                     </p>
-                    <button className="primary" disabled={busy}>
+                    </>}
+                    {gateway && !modelIsAvailable(selectedDefaultModel, gateway) && <p className="field-help">{t("Elige un modelo disponible en el catálogo de LiteLLM.")}</p>}
+                    <button className="primary" disabled={busy || !modelIsAvailable(selectedDefaultModel, gateway)}>
                       {busy ? (
                         <LoaderCircle size={15} className="spin" />
                       ) : (
@@ -1082,10 +1109,11 @@ function App() {
                     </button>
                   </form>
                 </section>
+                {gateway && <LiteLLMSettings gateway={gateway} busy={busy} action={action} refresh={refresh} saved={setToast} />}
                 <section className="card settings-card">
                   <div className="card-title">
                     <ShieldCheck size={17} />
-                    {t("Conexión con OpenAI")}<span className="tag">{t("Servidor")}</span>
+                    {t(gateway ? "OpenAI para imágenes" : "Conexión con OpenAI")}<span className="tag">{t("Servidor")}</span>
                   </div>
                   <form
                     onSubmit={(e) => {
@@ -1113,7 +1141,7 @@ function App() {
                         : t("API key pendiente")}
                     </div>
                     <p>
-                      {t("La clave se cifra en el servidor y nunca se devuelve al navegador. El estado se guarda localmente; las consultas y su contexto se envían a OpenAI.")}
+                      {t(gateway ? "Esta clave se usa para la herramienta de imágenes cuando genera directamente en OpenAI." : "La clave se cifra en el servidor y nunca se devuelve al navegador. El estado se guarda localmente; las consultas y su contexto se envían a OpenAI.")}
                     </p>
                     <label htmlFor="openai-key">API key</label>
                     <input
@@ -1356,10 +1384,12 @@ function AgentTable({
   agents,
   projects,
   open,
+  gateway,
 }: {
   agents: Agent[];
   projects: Project[];
   open: (a: Agent) => void;
+  gateway: boolean;
 }) {
   const { t } = useI18n();
   return agents.length ? (
@@ -1400,8 +1430,8 @@ function AgentTable({
               </td>
               <td>{projects.find((p) => p.id === a.project_id)?.name}</td>
               <td>
-                <code>{a.model}</code>
-                <small>{a.effort}</small>
+                <code>{a.model === AUTOMATIC_MODEL ? t(gateway ? "Best model" : "Automático") : a.model}</code>
+                {!gateway && a.model !== AUTOMATIC_MODEL && <small>{a.effort}</small>}
               </td>
               <td>
                 <Badge status={a.status} />
@@ -1420,7 +1450,7 @@ function AgentTable({
     </Empty>
   );
 }
-function RuntimeCard({ agent, runtime }: { agent: Agent; runtime?: AgentRuntime }) {
+function RuntimeCard({ agent, runtime, gateway }: { agent: Agent; runtime?: AgentRuntime; gateway: boolean }) {
   const { t } = useI18n();
   return (
     <section className="card runtime-card">
@@ -1436,8 +1466,8 @@ function RuntimeCard({ agent, runtime }: { agent: Agent; runtime?: AgentRuntime 
         </div>
         <div>
           <span className="muted tiny">{t("MODELO / RAZONAMIENTO")}</span>
-          <code>{agent.model}</code>
-          <span className="tag">{agent.effort}</span>
+          <code>{agent.model === AUTOMATIC_MODEL ? t(gateway ? "Best model" : "Automático") : agent.model}</code>
+          {!gateway && agent.model !== AUTOMATIC_MODEL && <span className="tag">{agent.effort}</span>}
         </div>
         <div>
           <span className="muted tiny">{t("ALMACENAMIENTO")}</span>

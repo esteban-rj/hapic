@@ -92,6 +92,12 @@ Abre [Hapic en tu equipo](http://127.0.0.1:8000). El primer inicio descarga y co
 
 La plataforma permite organizar proyectos y preparar perfiles sin OpenAI ni Docker. Conversar y ejecutar delegaciones requieren una API key y el runtime del destinatario; pueden generar consumo de API. Las imágenes también pueden tener coste.
 
+En **Conversación**, elige **Automático** y envía un mensaje para activarlo en ese agente. Hapic elige el modelo y el nivel de razonamiento según cada encargo, incluidas las delegaciones. También puedes configurarlo como opción predeterminada para agentes nuevos. [Cómo funciona el modo automático](docs/guide.md#selección-automática-del-modelo)
+
+Con **LiteLLM**, el selector muestra únicamente los modelos autorizados. **Best model** es el predeterminado cuando el Auto Router está disponible. Desde **Configuración → LiteLLM** puedes abrir el panel para gestionar modelos y consultar costes, tokens y solicitudes. [Configurar LiteLLM](docs/guide.md#litellm-modelos-y-costes)
+
+En el chat de un destinatario puedes ver cuándo está atendiendo una delegación. Si la ejecución falla, **Delegaciones** muestra la causa que detectó Hapic. [Seguir delegaciones](docs/guide.md#delegaciones-entre-agentes)
+
 ## Lo disponible y lo que viene
 
 | Disponible en este MVP local | Previsto |
