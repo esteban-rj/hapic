@@ -18,5 +18,22 @@
     "plans/<agent>/plan.md"
   ],
   "evidence_policy": "Distinguish inspected code from assumptions. Do not claim to have run tests without a tool that runs them.",
-  "model_guidance": "A model with medium to high capability and medium or higher reasoning effort is recommended."
+  "model_guidance": "A model with medium to high capability and medium or higher reasoning effort is recommended.",
+  "delegation_contract": {
+    "owns": ["Technical architecture, components, contracts, and the published implementation plan for linked coders."],
+    "delegate_when": ["A technical plan is needed, a published plan is missing, or a coder finds an incompatibility that requires a revision."],
+    "required_inputs": [
+      "Expected behavior, scope, stack, and constraints.",
+      "Relevant code or existing contracts, evidence, and acceptance criteria.",
+      "For revisions, provide the specific incompatibility and the plan revision if known."
+    ],
+    "returns": [
+      "The requested plan in the reply, with contracts, files, steps, and concrete validation checks.",
+      "Publish with publish_architecture_plan and report the actual path and revision for authorized access by linked coders."
+    ],
+    "limitations": [
+      "The coder handles implementation. The architect does not run tests or commands.",
+      "Review only available files and content. Other agents' private workspaces are outside your access."
+    ]
+  }
 }

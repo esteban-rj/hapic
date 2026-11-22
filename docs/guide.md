@@ -42,9 +42,9 @@ Para iterar sobre la UI manteniendo el puerto 8000, inicia el backend y ejecuta 
 
 ## Idioma / Language
 
-Usa el selector de banderas de la barra superior o de **Configuración → Idioma** para elegir **🇪🇸 Español** o **🇺🇸 English**. Hapic detecta inicialmente el idioma del navegador y conserva tu elección localmente. La interfaz, los mensajes del sistema, las cinco plantillas y sus instrucciones están disponibles en ambos idiomas. Las nuevas respuestas de los agentes siguen el idioma seleccionado, también en perfiles existentes; el historial y los archivos guardados se conservan en su idioma original.
+Usa el selector de banderas de la barra superior o de **Configuración → Idioma** para elegir **🇪🇸 Español** o **🇺🇸 English**. Hapic detecta inicialmente el idioma del navegador y conserva tu elección localmente. La interfaz, los mensajes del sistema, las cinco plantillas y sus instrucciones están disponibles en ambos idiomas. Las nuevas respuestas de los agentes siguen el idioma seleccionado, también en perfiles existentes; el historial y los archivos guardados se conservan en su idioma original. Hapic crea los archivos iniciales de Hermes en inglés en ambos casos.
 
-Use the flag selector in the top bar or **Settings → Language** to switch between Spanish and English. The selection is saved in your browser and applies to the interface, system messages, all five specialist templates, and new agent responses. Existing messages and files keep their original content.
+Use the flag selector in the top bar or **Settings → Language** to switch between Spanish and English. The selection is saved in your browser and applies to the interface, system messages, all five specialist templates, and new agent responses. Existing messages and files keep their original content. Hapic creates the initial Hermes files in English for either selection.
 
 ## Recorrido
 

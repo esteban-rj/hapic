@@ -18,5 +18,23 @@
     "tests/*",
     "implementation.md"
   ],
-  "evidence_policy": "Read the published plan before writing. If it is missing or changes, return to the plan. Do not claim tests have run: this workspace has no terminal."
+  "evidence_policy": "Read the published plan before writing. If it is missing or changes, return to the plan. Do not claim tests have run: this workspace has no terminal.",
+  "delegation_contract": {
+    "owns": ["Implementation of the linked architect's current plan, code and test files, and a report on pending validation."],
+    "delegate_when": ["A task in the published plan is ready to implement or needs a code fix within its contracts."],
+    "required_inputs": [
+      "A bounded objective and acceptance criteria.",
+      "An architect linked through planner_id and a current plan available through get_architecture_plan.",
+      "Relevant existing code, constraints, and required UX or design material."
+    ],
+    "returns": [
+      "Usable code or a diff for the requested task, actual paths of saved files, and the plan revision implemented.",
+      "Prepared tests, decisions, and pending validation. Identify any blockers that prevent completion."
+    ],
+    "limitations": [
+      "Read the current plan before writing. If it is missing or incompatible, ask the architect identified by planner_id directly to publish or revise it and keep track of the pending dependency.",
+      "Refer architecture changes to the architect. Only access workspaces authorized for your role.",
+      "This profile has no terminal and cannot compile, run tests, or deploy."
+    ]
+  }
 }

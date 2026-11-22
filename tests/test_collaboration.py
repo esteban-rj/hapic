@@ -55,7 +55,11 @@ def test_delegation_scope_idempotency_and_cycles(team):
         service.tool(outsider, 'get_task_status', {'task_id': task['id']})
 
 
-def test_direct_execution_and_persistent_result(team, monkeypatch):
+@pytest.mark.parametrize('language,reply_instruction,preamble', [
+    ('es', 'Responde en español durante este turno', 'Tarea delegada por un colega del proyecto'),
+    ('en', 'Reply in English for this turn', 'Task delegated by a project colleague'),
+])
+def test_direct_execution_and_persistent_result(team, monkeypatch, language, reply_instruction, preamble):
     service, a, b = team
     monkeypatch.setenv('OPENAI_API_KEY', 'test-only')
     service.store.execute("UPDATE agents SET container_id='test' WHERE id=?", (b['id'],))
@@ -73,17 +77,23 @@ def test_direct_execution_and_persistent_result(team, monkeypatch):
         assert request == {'id': request_id, 'sender_id': a['id'], 'task': 'Review',
                            'context': 'Un flujo de navegación con dos acciones principales.',
                            'expected_result': 'Recomendación visual utilizable en texto.'}
-        assert 'respuesta final' in text and 'remitente' in text
-        assert agent_profile('graphic-designer')['delegation_contract']['owns'][0] in platform_instructions(agent, store)
+        assert text.startswith(preamble)
+        instructions = platform_instructions(agent, store)
+        assert reply_instruction in instructions
+        assert agent_profile('graphic-designer', language)['delegation_contract']['owns'][0] in instructions
+        assert store.setting('agent-language-' + agent['id']) == language
         service.tool(agent, 'project_write_file', {'path': 'entrega-visual.md', 'content': deliverable})
         return answer, 'completed'
     service.runtime.chat = chat
-    with patch('backend.service.threading.Thread'):
+    service.store.set_setting('agent-language-' + a['id'], language)
+    with patch('backend.service.threading.Thread') as thread:
         task = service.tool(a, 'delegate_task', dict(
             agent_id=b['id'], task='Review', request_id='one',
             context='Un flujo de navegación con dos acciones principales.',
             expected_result='Recomendación visual utilizable en texto.'))
-    service.run_delegated_task(task['id'])
+    service.store.set_setting('agent-language-' + a['id'], 'es')
+    scheduled = thread.call_args.kwargs
+    scheduled['target'](*scheduled['args'])
     result = service.tool(a, 'get_task_status', {'task_id': task['id']})
     assert result['status'] == 'completed' and result['result'] == answer
     assert deliverable in result['result']
@@ -110,7 +120,9 @@ def test_all_profiles_expose_contracts_and_instructions_in_roster_and_catalog(te
                    for values in contract.values())
         agent = service.agent(entry['id'])
         home = service.store.agent_path(agent) / 'hermes'
-        assert json.dumps(contract, ensure_ascii=False) in (home / 'SOUL.md').read_text(encoding='utf-8')
+        english_contract = agent_profile(entry['kind'], 'en')['delegation_contract']
+        assert english_contract != contract
+        assert json.dumps(english_contract, ensure_ascii=False) in (home / 'SOUL.md').read_text(encoding='utf-8')
         instructions = platform_instructions(agent, service.store)
         assert json.dumps(contract, ensure_ascii=False) in instructions
         assert 'Estado del trabajo' in instructions and 'Pendientes para el remitente' in instructions

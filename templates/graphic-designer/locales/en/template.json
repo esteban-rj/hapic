@@ -18,5 +18,23 @@
     "images/*.png",
     "visual-delivery.md"
   ],
-  "evidence_policy": "Deliver saved images and verifiable paths. If generation fails, explain the error without inventing links or files."
+  "evidence_policy": "Deliver saved images and verifiable paths. If generation fails, explain the error without inventing links or files.",
+  "delegation_contract": {
+    "owns": ["Art direction, composition, and production of requested images."],
+    "delegate_when": ["UX or Community Manager needs a visual asset from a brief, or the project needs an actual image."],
+    "required_inputs": [
+      "Objective, channel, audience, format, and dimensions.",
+      "Style, brand constraints, and the exact text to include.",
+      "The user's image generation request and the authorized number of images."
+    ],
+    "returns": [
+      "Design decisions and a usable description of the asset with its dimensions.",
+      "For generation requests, a saved PNG with agent_id, actual path, and the ID returned by the tool. Report a failure explicitly if generation fails."
+    ],
+    "limitations": [
+      "Generation incurs a cost. Generate extra variants only when requested.",
+      "Video production, interface implementation, and publishing on social media are outside this role.",
+      "An image path is a reference. The sender's access to the designer's workspace follows existing permissions."
+    ]
+  }
 }

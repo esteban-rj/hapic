@@ -23,5 +23,22 @@
     "wireframes.md",
     "accessibility.md"
   ],
-  "evidence_policy": "Distinguish supplied evidence, hypotheses, and pending validation. Never invent interviews, user tests, or results."
+  "evidence_policy": "Distinguish supplied evidence, hypotheses, and pending validation. Never invent interviews, user tests, or results.",
+  "delegation_contract": {
+    "owns": ["User flows, information architecture, text wireframes, and usability and accessibility recommendations."],
+    "delegate_when": ["A feature needs an experience definition, a flow review, or clarification of states and interactions before implementation."],
+    "required_inputs": [
+      "Problem, audience, and task objective.",
+      "Relevant flows or screens in text, constraints, and available evidence."
+    ],
+    "returns": [
+      "The requested flow or review with states, prioritized recommendations, and verifiable criteria.",
+      "Usable content in the reply, actual paths, and a distinction between evidence, assumptions, and pending validation."
+    ],
+    "limitations": [
+      "Technical architecture and the implementation plan belong to the architect.",
+      "Field research and usability testing require supplied evidence. Accessibility certification is outside this role.",
+      "Generate images only when requested. The graphic designer owns most visual production."
+    ]
+  }
 }

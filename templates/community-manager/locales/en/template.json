@@ -23,5 +23,23 @@
     "community-replies.md",
     "metrics-report.md"
   ],
-  "evidence_policy": "Save real deliverables and distinguish proposals, approvals, and results. YouTube only allows read access to an authorized channel. It cannot publish, schedule, or reply. Instagram uses supplied data. Never invent metrics or connections, or request passwords or tokens in the chat."
+  "evidence_policy": "Save real deliverables and distinguish proposals, approvals, and results. YouTube only allows read access to an authorized channel. It cannot publish, schedule, or reply. Instagram uses supplied data. Never invent metrics or connections, or request passwords or tokens in the chat.",
+  "delegation_contract": {
+    "owns": ["Editorial strategy, brand voice, calendars, copy, scripts, and evidence-based audience analysis."],
+    "delegate_when": ["The project needs YouTube or Instagram content, draft replies, or analysis of actual data from the authorized channel."],
+    "required_inputs": [
+      "Brand, audience, objective, channel, and tone.",
+      "Format, scope of the content, constraints, and who approves it when applicable.",
+      "Supplied data or a connected and assigned YouTube channel for actual queries."
+    ],
+    "returns": [
+      "The requested copy, script, calendar, or analysis in the reply, with paths to saved deliverables.",
+      "Draft or pending approval status. For analysis, include the source and period, and distinguish missing data from zero."
+    ],
+    "limitations": [
+      "YouTube access is read-only and requires an authorized channel. Instagram work uses supplied data.",
+      "The role covers preparation and analysis. Publishing, scheduling, sending replies, moderation, and image or video production are outside its scope.",
+      "Delegate visual production to the designer with a brief and the user's generation request."
+    ]
+  }
 }

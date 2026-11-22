@@ -422,12 +422,17 @@ def test_chat_contract_with_hermes_double(client, app):
     assert client.post(f"/api/agents/{agent['id']}/chat", json={"content": "Otro", "request_id": "second"}).status_code == 409
 
 
-def test_hermes_wire_uses_responses_not_chat_completions(client, app):
-    import asyncio
+@pytest.mark.parametrize("language,contract,work_status,follow_up,reply_instruction", [
+    ("es", "Tu contrato de delegación", "Estado del trabajo", "Pendientes para el remitente", "Responde en español durante este turno"),
+    ("en", "Your delegation contract", "Work status", "Follow-up for the sender", "Reply in English for this turn"),
+])
+def test_hermes_wire_uses_responses_not_chat_completions(client, app, language, contract, work_status, follow_up, reply_instruction):
     p = project(client)
     agent = client.get("/api/state").json()["agents"][0]
-    agent["container_id"] = "double"
+    app.state.store.secret("openai", "test-key-never-sent-to-openai")
+    app.state.store.execute("UPDATE agents SET container_id='double' WHERE id=?", (agent["id"],))
     runtime = DockerRuntime()
+    app.state.service.runtime = runtime
     fake_container = MagicMock()
     fake_container.attrs = {"NetworkSettings": {"Ports": {"8642/tcp": [{"HostPort": "12345"}]}}}
     fake_client = MagicMock()
@@ -441,15 +446,17 @@ def test_hermes_wire_uses_responses_not_chat_completions(client, app):
     import httpx
     real_async_client = httpx.AsyncClient
     with patch.object(runtime, "client", return_value=fake_client), patch("backend.runtime.httpx.AsyncClient", side_effect=lambda **kwargs: real_async_client(transport=httpx.MockTransport(handler))):
-        answer, status = asyncio.run(runtime.chat(agent, app.state.store, "Hola", "request-123"))
-    assert answer == "Hola" and status == "completed"
+        response = client.post(f"/api/agents/{agent['id']}/chat", headers={"Accept-Language": language}, json={"content": "Hola", "request_id": "request-123"})
+    assert response.status_code == 200 and response.json() == {"content": "Hola", "status": "completed"}
     request = seen[0]
     assert request.url.path == "/v1/responses"
     payload = json.loads(request.content)
     assert payload["provider"] == "openai-api" and payload["model_options"]["reasoning_effort"] == "xhigh"
     assert '"delegation_contract"' in payload["instructions"]
-    assert "## Tu contrato de delegación" in payload["instructions"]
-    assert "Estado del trabajo" in payload["instructions"] and "Pendientes para el remitente" in payload["instructions"]
+    assert f"## {contract}" in payload["instructions"]
+    assert work_status in payload["instructions"] and follow_up in payload["instructions"]
+    assert reply_instruction in payload["instructions"] and payload["input"] == "Hola"
+    assert request.headers["Accept-Language"] == language
     assert request.headers["Idempotency-Key"] == "request-123"
 
 
@@ -503,7 +510,7 @@ def test_specialist_catalog_creation_and_scope(client, app):
         agent = response.json()
         assert agent["kind"] == kind and agent["template"] == kind + "-v1"
         home = app.state.store.agent_path(agent) / "hermes"
-        assert (home / "SOUL.md").exists() and "Sin recuerdos" in (home / "memories/MEMORY.md").read_text(encoding="utf-8")
+        assert (home / "SOUL.md").exists() and "No memories yet" in (home / "memories/MEMORY.md").read_text(encoding="utf-8")
         config = yaml.safe_load((home / "config.yaml").read_text(encoding="utf-8"))
         assert ("generate_project_image" in config["mcp_servers"]["hapic"]["tools"]["include"]) == (kind == "graphic-designer")
     assert client.post(f"/api/projects/{p['id']}/agents", json={"name": "bad", "template": "../secrets"}).status_code == 400
@@ -691,14 +698,19 @@ def test_all_templates_have_complete_english_metadata_and_instructions(client):
     from backend.storage import ROOT
     english = client.get("/api/templates", headers={"Accept-Language": "en"}).json()
     spanish = client.get("/api/templates", headers={"Accept-Language": "es"}).json()
-    localized_fields = {"name", "role", "description", "capabilities", "questions", "deliverables", "evidence_policy", "model_guidance"}
+    localized_fields = {"name", "role", "description", "capabilities", "questions", "deliverables", "evidence_policy", "model_guidance", "delegation_contract"}
     for en, es in zip(english, spanish):
         metadata = json.loads((ROOT / "templates" / en["kind"] / "locales/en/template.json").read_text())
         assert set(metadata) == set(es) & localized_fields
         for field in ("id", "version", "kind", "tools", "default_integrations", "recommended_model", "recommended_effort"):
             assert en.get(field) == es.get(field)
         assert en["instructions"] != es["instructions"]
-        assert "English" in en["instructions"] and "español" not in en["instructions"]
+        assert "## Collaboration and delegated requests" in en["instructions"]
+        assert "## Tu contrato de delegación" not in en["instructions"]
+        assert en["delegation_contract"].keys() == es["delegation_contract"].keys()
+        for key, values in en["delegation_contract"].items():
+            assert len(values) == len(es["delegation_contract"][key])
+            assert set(values).isdisjoint(es["delegation_contract"][key])
         assert en["description"] != es["description"]
         assert len(en["capabilities"]) == len(es["capabilities"])
         assert len(en["questions"]) == len(es["questions"])
@@ -706,12 +718,18 @@ def test_all_templates_have_complete_english_metadata_and_instructions(client):
             assert deliverable in en["instructions"] or deliverable.startswith(("src/", "tests/", "plans/", "images/"))
 
 
-def test_english_agent_profiles_and_mcp_language_persist(client, app):
-    client.headers["Accept-Language"] = "en"
+@pytest.mark.parametrize("language,ux_name,tool_error", [
+    ("es", "Especialista UX", "Selecciona un canal en Herramientas para este agente"),
+    ("en", "UX Specialist", "Select a channel for this agent in Tools"),
+])
+def test_hermes_profiles_are_always_english_and_mcp_follows_interface(client, app, language, ux_name, tool_error):
+    from backend.templates import agent_instructions, template_root
+
+    client.headers["Accept-Language"] = language
     p = project(client)
     store, service = app.state.store, app.state.service
     hapic = store.one("SELECT * FROM agents WHERE project_id=?", (p["id"],))
-    assert service.tool(hapic, "get_ux_template", {})["name"] == "UX Specialist"
+    assert service.tool(hapic, "get_ux_template", {})["name"] == ux_name
     with patch.object(service, "provision"):
         service.tool(hapic, "create_specialist_agent", {"name": "Architect", "template": "architect"})
     architect = store.one("SELECT * FROM agents WHERE project_id=? AND kind='architect'", (p["id"],))
@@ -720,16 +738,22 @@ def test_english_agent_profiles_and_mcp_language_persist(client, app):
         assert result.status_code == 201
     for agent in store.all("SELECT * FROM agents WHERE project_id=?", (p["id"],)):
         home = store.agent_path(agent) / "hermes"
-        assert (home / "SOUL.md").read_text().startswith(f"Your name is {agent['name']}.")
-        assert "English" in (home / "SOUL.md").read_text()
-        assert "No memories yet" in (home / "memories/MEMORY.md").read_text()
-        assert store.setting("agent-language-" + agent["id"]) == "en"
+        soul = (home / "SOUL.md").read_text(encoding="utf-8")
+        expected_soul = f"Your name is {agent['name']}.\n\n" + agent_instructions(agent["kind"], "en")
         if agent["kind"] == "ux":
-            assert "traceable evidence" in (home / "skills/ux-method/SKILL.md").read_text()
+            skill_path = "skills/ux-method/SKILL.md"
+            expected_skill = (template_root("ux", "en") / skill_path).read_text(encoding="utf-8")
+            assert (home / skill_path).read_text(encoding="utf-8") == expected_skill
+            expected_soul += "\n\n## Included working method\n" + expected_skill
+        assert soul == expected_soul
+        assert "## Collaboration and delegated requests" in soul
+        assert (home / "memories/MEMORY.md").read_text(encoding="utf-8") == "# Agent memory\n\nNo memories yet.\n"
+        assert (home / "memories/USER.md").read_text(encoding="utf-8") == "# Shared context\n\nWaiting to learn about the user.\n"
+        assert store.setting("agent-language-" + agent["id"]) == language
     restarted = Service(Store(store.root), TestRuntime())
-    assert restarted.tool(hapic, "get_ux_template", {})["name"] == "UX Specialist"
+    assert restarted.tool(hapic, "get_ux_template", {})["name"] == ux_name
     manager = store.one("SELECT * FROM agents WHERE project_id=? AND kind='community-manager'", (p["id"],))
-    with pytest.raises(ValueError, match="Select a channel for this agent in Tools"):
+    with pytest.raises(ValueError, match=tool_error):
         restarted.tool(manager, "youtube_get_channel", {})
 
 
@@ -784,6 +808,7 @@ def test_switching_existing_chat_language_preserves_profile_and_history(client, 
         assert store.setting("agent-language-" + agent["id"]) == language
     assert "Current platform language: English" in seen[0]
     assert "Idioma actual de la plataforma: español" in seen[1]
-    assert "Hablas español" not in seen[0]
+    assert "Reply in English for this turn even if the profile, history, or message uses another language." in seen[0]
+    assert "Responde en español durante este turno aunque el perfil, el historial o el mensaje estén en otro idioma." in seen[1]
     assert (home / "SOUL.md").read_bytes() == original_profile
     assert [m["content"] for m in client.get(f"/api/agents/{agent['id']}/messages").json()] == ["Hello", "Hello", "Hola", "Hola"]

@@ -1,6 +1,6 @@
 # Community Manager
 
-Speak clear English and adapt content to the brand’s language and tone.
+Communicate clearly and adapt content to the brand’s language and tone.
 Your mission is to build a useful community for the audience and support brand goals through consistent content, conversations, and measurable learning on Instagram and YouTube.
 
 ## Context and strategy

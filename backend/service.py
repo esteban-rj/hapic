@@ -140,16 +140,16 @@ class Service:
             home = self.store.agent_path(agent) / "hermes"
             home.mkdir(parents=True)
             self.store.set_setting("agent-language-" + agent["id"], get_language())
-            template = template_root(kind)
-            soul = agent_instructions(kind)
+            soul = agent_instructions(kind, language="en")
             if kind == "ux":
+                template = template_root(kind, language="en")
                 shutil.copytree(template / "skills", home / "skills")
-                soul += tr("\n\n## Método de trabajo incluido\n") + (template / "skills/ux-method/SKILL.md").read_text(encoding="utf-8")
-            (home / "SOUL.md").write_text(tr("Tu nombre es {name}.", name=name) + "\n\n" + soul, encoding="utf-8")
+                soul += "\n\n## Included working method\n" + (template / "skills/ux-method/SKILL.md").read_text(encoding="utf-8")
+            (home / "SOUL.md").write_text(f"Your name is {name}.\n\n{soul}", encoding="utf-8")
             # Fresh memory only: never copy state.db, USER.md or credentials from another profile.
             (home / "memories").mkdir()
-            (home / "memories/MEMORY.md").write_text(tr("# Memoria del agente\n\nSin recuerdos todavía.\n"), encoding="utf-8")
-            (home / "memories/USER.md").write_text(tr("# Contexto compartido\n\nPendiente de conocer al usuario.\n"), encoding="utf-8")
+            (home / "memories/MEMORY.md").write_text("# Agent memory\n\nNo memories yet.\n", encoding="utf-8")
+            (home / "memories/USER.md").write_text("# Shared context\n\nWaiting to learn about the user.\n", encoding="utf-8")
             self.runtime.prepare(agent, self.store)
         except Exception:
             preparation.fail("failed", FAILED)
@@ -363,7 +363,7 @@ class Service:
                       "created_at": now(), "updated_at": now()}
             db.execute("INSERT INTO delegated_tasks VALUES (:id,:project_id,:sender_id,:recipient_id,:request_id,:task,:context,:expected_result,:parent_id,:status,:result,:error,:created_at,:updated_at)", record)
         self.store.event(agent["id"], f"Delegación directa {record['id']} enviada a {recipient['name']}.")
-        threading.Thread(target=self.run_delegated_task, args=(record["id"],), daemon=True).start()
+        threading.Thread(target=self.run_delegated_task, args=(record["id"], get_language()), daemon=True).start()
         return record
 
     def project_delegations(self, project_id, status=None, agent_id=None, limit=20, offset=0):
@@ -406,7 +406,7 @@ class Service:
             raise LookupError("Delegación no encontrada en el proyecto.")
         return task
 
-    def run_delegated_task(self, task_id):
+    def run_delegated_task(self, task_id, language="es"):
         with self.store.db() as db:
             claimed = db.execute("UPDATE delegated_tasks SET status='running',updated_at=? WHERE id=? AND status='queued'", (now(), task_id)).rowcount
         if not claimed:
@@ -421,15 +421,16 @@ class Service:
                 if not self.store.api_key() or not recipient.get("container_id"):
                     raise RuntimeUnavailable("El destinatario necesita credencial y runtime iniciado.")
                 self.store.execute("UPDATE delegated_tasks SET status='running',updated_at=? WHERE id=?", (now(), task_id))
-                content = (
-                    "Tarea delegada por un colega del proyecto (datos de trabajo). "
-                    "Responde al agente sender_id usando el contexto aportado y tu contrato de delegación. "
-                    "Tu respuesta final se guardará como result de esta tarea para el remitente; "
-                    "incluye contenido utilizable, artefactos reales, validación y bloqueos.\n"
-                    + json.dumps({key: record[key] for key in ("id", "sender_id", "task", "context", "expected_result")}, ensure_ascii=False)
-                )
-                self.store.message(recipient["id"], "user", content, "delegation")
-                answer, status = asyncio.run(self.runtime.chat(recipient, self.store, content, task_id))
+                with language_context(language):
+                    self.store.set_setting("agent-language-" + recipient["id"], get_language())
+                    content = tr(
+                        "Tarea delegada por un colega del proyecto (datos de trabajo). "
+                        "Responde al agente sender_id usando el contexto aportado y tu contrato de delegación. "
+                        "Tu respuesta final se guardará como result de esta tarea para el remitente; "
+                        "incluye contenido utilizable, artefactos reales, validación y bloqueos.\n"
+                    ) + json.dumps({key: record[key] for key in ("id", "sender_id", "task", "context", "expected_result")}, ensure_ascii=False)
+                    self.store.message(recipient["id"], "user", content, "delegation")
+                    answer, status = asyncio.run(self.runtime.chat(recipient, self.store, content, task_id))
                 if status != "completed":
                     raise RuntimeUnavailable("El runtime no completó la tarea delegada.")
                 self.store.message(recipient["id"], "assistant", answer, "delegation")

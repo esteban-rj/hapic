@@ -2,7 +2,7 @@
 import json
 
 from .storage import ROOT
-from .i18n import get_language
+from .i18n import get_language, tr
 
 SPECIALISTS = ("ux", "graphic-designer", "architect", "coder", "community-manager")
 COLLABORATION_TOOLS = ["list_project_agents", "delegate_task", "get_task_status"]
@@ -43,10 +43,15 @@ def agent_profile(kind, language=None):
 
 def agent_instructions(kind, language=None):
     """Use the same current contract and handoff rules for new and existing agents."""
+    language = language or get_language()
     profile = agent_profile(kind, language)
     role = soul(kind, language)
-    collaboration = (ROOT / "templates" / "delegation.md").read_text(encoding="utf-8")
-    return role + "\n\n" + collaboration + "\n\n## Tu contrato de delegación\n" + json.dumps(profile["delegation_contract"], ensure_ascii=False)
+    shared_templates = ROOT / "templates"
+    if language == "en":
+        shared_templates /= "locales/en"
+    collaboration = (shared_templates / "delegation.md").read_text(encoding="utf-8")
+    heading = tr("## Tu contrato de delegación", language)
+    return f"{role}\n\n{collaboration}\n\n{heading}\n" + json.dumps(profile["delegation_contract"], ensure_ascii=False)
 
 
 def tools_for(kind):
